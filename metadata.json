@@ -1,0 +1,5 @@
+{
+  "name": "MapMyRepo",
+  "description": "A visual, zoomable repository mapper that uses AI to break down folders into files and files into functional components for deep structural understanding.",
+  "requestFramePermissions": []
+}
