@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Simple White Circle Background -->
+  <circle cx="50" cy="50" r="50" fill="#ffffff" />
+  
+  <!-- Minimalist Node Graph -->
+  <g transform="translate(0, 5)">
+    <!-- Connections -->
+    <line x1="50" y1="30" x2="30" y2="65" stroke="#0969da" stroke-width="6" stroke-linecap="round" />
+    <line x1="50" y1="30" x2="70" y2="65" stroke="#0969da" stroke-width="6" stroke-linecap="round" />
+    
+    <!-- Nodes -->
+    <circle cx="50" cy="30" r="10" fill="#0969da" />
+    <circle cx="30" cy="65" r="8" fill="#0969da" />
+    <circle cx="70" cy="65" r="8" fill="#0969da" />
+  </g>
+</svg>

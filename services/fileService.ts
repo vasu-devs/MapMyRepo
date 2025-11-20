@@ -143,3 +143,154 @@ const calculateSizeRecursive = (node: FileSystemNode): number => {
     }
     return 0;
 };
+
+// --- NEW: Fetch repository from GitHub and build FileSystemNode ---
+
+export const parseGitHubUrl = (url: string) => {
+  try {
+    const urlObj = new URL(url);
+    const parts = urlObj.pathname.replace(/^\//, '').split('/');
+    if (parts.length >= 2) {
+      return { owner: parts[0], repo: parts[1] };
+    }
+  } catch (e) {
+    return null;
+  }
+  return null;
+};
+
+export const fetchRemoteFileContent = async (url: string): Promise<string> => {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to fetch content: ${response.statusText}`);
+    return await response.text();
+};
+
+export const fetchGithubRepo = async (url: string, token?: string): Promise<FileSystemNode> => {
+    const coords = parseGitHubUrl(url);
+    if (!coords) throw new Error("Invalid GitHub URL. Format: https://github.com/owner/repo");
+    const { owner, repo } = coords;
+
+    const headers: HeadersInit = {
+        'Accept': 'application/vnd.github.v3+json'
+    };
+    
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // 1. Fetch Repo Info for default branch
+    const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+    
+    if (repoResponse.status === 403) {
+        throw new Error("GitHub API rate limit exceeded. Please provide a GitHub Token (PAT) to increase limits.");
+    }
+    if (repoResponse.status === 404) throw new Error("Repository not found. Please check the URL.");
+    
+    const repoData = await repoResponse.json();
+    const defaultBranch = repoData.default_branch;
+
+    // 2. Fetch Tree
+    const treeResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`, { headers });
+    if (!treeResponse.ok) {
+        if (treeResponse.status === 403) throw new Error("GitHub API rate limit exceeded. Please provide a GitHub Token.");
+        throw new Error("Failed to fetch repository structure.");
+    }
+    const treeData = await treeResponse.json();
+
+    if (treeData.truncated) {
+        console.warn("Repository is too large, some files may be missing.");
+    }
+
+    // 3. Build Hierarchy
+    const root: FileSystemNode = {
+        name: repo,
+        type: NodeType.FOLDER,
+        children: [],
+        path: "root",
+        value: 0
+    };
+
+    const nodesByPath = new Map<string, FileSystemNode>();
+    nodesByPath.set("root", root);
+    
+    // Helper to calculate size recursively
+    const calculateSizeRecursive = (node: FileSystemNode): number => {
+        if (node.type === NodeType.FILE) return node.value || 1;
+        if (node.children) {
+            const sum = node.children.reduce((acc, c) => acc + calculateSizeRecursive(c), 0);
+            node.value = sum;
+            return sum;
+        }
+        return 0;
+    };
+
+    // Sort items by path length to ensure folders exist before files
+    const sortedItems = treeData.tree.sort((a: any, b: any) => a.path.split('/').length - b.path.split('/').length);
+
+    // Process items
+    for (const item of sortedItems) {
+        const pathParts = item.path.split('/');
+        const fileName = pathParts.pop()!;
+        const dirPath = pathParts.join('/');
+        
+        // Find parent
+        let parentNode = root;
+        if (dirPath) {
+            // Construct parent path logic relative to our map
+            // Since we are flat from GitHub, we rely on the map
+            let walker = root;
+            let currentWalk = "";
+            const parts = dirPath.split('/');
+            for (const p of parts) {
+                currentWalk = currentWalk ? `${currentWalk}/${p}` : p;
+                let child = nodesByPath.get(currentWalk);
+                if (!child) {
+                    child = {
+                        name: p,
+                        type: NodeType.FOLDER,
+                        path: currentWalk,
+                        children: [],
+                        value: 0
+                    };
+                    nodesByPath.set(currentWalk, child);
+                    if (walker.children) walker.children.push(child);
+                }
+                walker = child;
+            }
+            parentNode = walker;
+        }
+
+        const fullPath = item.path;
+        
+        if (item.type === 'blob') {
+            const fileNode: FileSystemNode = {
+                name: fileName,
+                type: NodeType.FILE,
+                path: fullPath,
+                value: item.size || 0,
+                downloadUrl: `https://raw.githubusercontent.com/${owner}/${repo}/${defaultBranch}/${fullPath}`
+            };
+            if (parentNode.children) {
+                parentNode.children.push(fileNode);
+            }
+            nodesByPath.set(fullPath, fileNode);
+        } else if (item.type === 'tree') {
+            if (!nodesByPath.has(fullPath)) {
+                const folderNode: FileSystemNode = {
+                    name: fileName,
+                    type: NodeType.FOLDER,
+                    path: fullPath,
+                    children: [],
+                    value: 0
+                };
+                nodesByPath.set(fullPath, folderNode);
+                if (parentNode.children) {
+                    parentNode.children.push(folderNode);
+                }
+            }
+        }
+    }
+    
+    calculateSizeRecursive(root);
+    return root;
+};

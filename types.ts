@@ -25,7 +25,8 @@ export interface FileSystemNode {
   size?: number; // File size or arbitrary size for visualization
   analyzed?: boolean; // If true, children (functions) have been populated by AI
   value?: number; // For d3 packing
-  chatHistory?: ChatMessage[]; // Store chat history specific to this node
+  downloadUrl?: string; // URL to fetch raw content
+
 }
 
 export interface AIAnalysisResult {
@@ -50,6 +51,7 @@ export interface GraphNode extends d3.SimulationNodeDatum {
   y?: number;
   fx?: number | null;
   fy?: number | null;
+  depth?: number; // Distance from root
 }
 
 export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {

@@ -2,13 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { FileSystemNode, GraphLink, GraphNode, NodeType } from '../types';
 import { analyzeCode } from '../services/geminiService';
+import { fetchRemoteFileContent } from '../services/fileService';
 
 interface RepoVisualizerProps {
   data: FileSystemNode;
   onNodeSelect: (node: FileSystemNode) => void;
+  isDarkMode: boolean;
 }
 
-export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSelect }) => {
+export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSelect, isDarkMode }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   
@@ -84,7 +86,8 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
         y: 0,
         fx: 0, 
         fy: 0,
-        isExpanded: false
+        isExpanded: false,
+        depth: 0
     };
     setNodes([rootNode]);
 
@@ -114,12 +117,22 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
 
     linkSelection.exit().remove();
 
-    const linkEnter = linkSelection.enter().append("line")
-        .attr("stroke", "#d0d7de")
-        .attr("stroke-opacity", 0.8)
-        .attr("stroke-width", 1.5);
+    const linkEnter = linkSelection.enter().append("line");
 
-    const newLinks = linkEnter.merge(linkSelection as any);
+    const newLinks = linkEnter.merge(linkSelection as any)
+        .attr("stroke", isDarkMode ? "#7d8590" : "#57606a")
+        .attr("stroke-opacity", d => {
+            const target = d.target as GraphNode;
+            const depth = target.depth || 1;
+            // Fade out deeper levels
+            return Math.max(0.2, 0.8 - (depth * 0.12));
+        })
+        .attr("stroke-width", d => {
+            const target = d.target as GraphNode;
+            const depth = target.depth || 1;
+            // Thicker near root, thinner deeper down
+            return Math.max(1, 5 - (depth * 0.8));
+        });
 
     // Update Nodes
     const nodeSelection = nodeGroup.selectAll("g")
@@ -144,7 +157,7 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
     nodeEnter.append("circle")
         .attr("r", d => getNodeSize(d.type))
         .attr("fill", d => getNodeColor(d.type))
-        .attr("stroke", "#ffffff")
+        .attr("stroke", isDarkMode ? "#0d1117" : "#ffffff")
         .attr("stroke-width", 2)
         .style("cursor", "pointer")
         .attr("filter", "drop-shadow(0px 1px 2px rgba(0,0,0,0.1))");
@@ -157,10 +170,10 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
         .style("font-family", "ui-monospace, SFMono-Regular, Menlo, monospace")
         .style("font-size", d => d.type === NodeType.FOLDER ? "12px" : "10px")
         .style("font-weight", d => d.type === NodeType.FOLDER ? "600" : "400")
-        .style("fill", "#24292f") 
+        .style("fill", isDarkMode ? "#c9d1d9" : "#24292f") 
         .style("pointer-events", "none")
         .style("paint-order", "stroke")
-        .style("stroke", "#ffffff")
+        .style("stroke", isDarkMode ? "#0d1117" : "#ffffff")
         .style("stroke-width", "3px")
         .style("stroke-linecap", "butt")
         .style("stroke-linejoin", "miter");
@@ -171,7 +184,7 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
         .attr("r", 2)
         .attr("cx", 0)
         .attr("cy", 0)
-        .attr("fill", "#ffffff")
+        .attr("fill", isDarkMode ? "#0d1117" : "#ffffff")
         .style("pointer-events", "none")
         .style("opacity", 0); 
 
@@ -180,7 +193,7 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
     // Update visuals
     newNodes.select("circle")
         .attr("fill", d => getNodeColor(d.type))
-        .attr("stroke", d => d.isExpanded ? "#0969da" : "#ffffff")
+        .attr("stroke", d => d.isExpanded ? "#0969da" : (isDarkMode ? "#0d1117" : "#ffffff"))
         .attr("stroke-width", d => d.isExpanded ? 2 : 1.5)
         .on("mouseenter", function(event, d) {
             d3.select(this)
@@ -193,10 +206,14 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
             d3.select(this)
                 .transition().duration(200)
                 .attr("r", getNodeSize(d.type))
-                .attr("stroke", d.isExpanded ? "#0969da" : "#ffffff")
+                .attr("stroke", d.isExpanded ? "#0969da" : (isDarkMode ? "#0d1117" : "#ffffff"))
                 .attr("stroke-width", d.isExpanded ? 2 : 1.5);
         })
         .on("click", (event, d) => handleNodeClick(event, d));
+
+    newNodes.select("text")
+        .style("fill", isDarkMode ? "#c9d1d9" : "#24292f")
+        .style("stroke", isDarkMode ? "#0d1117" : "#ffffff");
 
     newNodes.select(".indicator")
         .attr("r", d => getNodeSize(d.type) + 4)
@@ -237,7 +254,7 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
         d.fy = null;
     }
 
-  }, [nodes, links]);
+  }, [nodes, links, isDarkMode]);
 
   // --- 4. Auto-Focus Effect ---
   useEffect(() => {
@@ -273,7 +290,7 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
       if (d.type === NodeType.FOLDER) {
           toggleFolder(d);
       } else if (d.type === NodeType.FILE) {
-          if (!d.data.analyzed && d.data.content) {
+          if (!d.data.analyzed && (d.data.content || d.data.downloadUrl)) {
               await analyzeFile(d);
           } else if (d.data.children && d.data.children.length > 0) {
               toggleFolder(d);
@@ -332,7 +349,8 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
               // Increased random jitter to avoid initial stacking/overlap
               x: parentNode.x! + (Math.random() - 0.5) * 60, 
               y: parentNode.y! + (Math.random() - 0.5) * 60,
-              isExpanded: false
+              isExpanded: false,
+              depth: (parentNode.depth || 0) + 1
           }));
 
           const newLinks = newNodes.map(child => ({
@@ -365,7 +383,19 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
       setFocusNodeId(node.id);
       
       try {
-        const result = await analyzeCode(node.name, node.data.content || "");
+        let content = node.data.content;
+        if (!content && node.data.downloadUrl) {
+             try {
+                 content = await fetchRemoteFileContent(node.data.downloadUrl);
+                 node.data.content = content; // Cache it
+             } catch (e) {
+                 console.error("Failed to fetch file content", e);
+                 setAnalyzingNodeId(null);
+                 return;
+             }
+        }
+
+        const result = await analyzeCode(node.name, content || "");
         
         if (result) {
             node.data.analyzed = true;
@@ -411,15 +441,15 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-full bg-[#ffffff] overflow-hidden">
+    <div ref={containerRef} className={`relative w-full h-full overflow-hidden ${isDarkMode ? 'bg-[#0d1117]' : 'bg-[#ffffff]'}`}>
         {/* Dot Grid Background */}
-        <div className="absolute inset-0 bg-[radial-gradient(#e1e4e8_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
+        <div className={`absolute inset-0 [background-size:20px_20px] pointer-events-none ${isDarkMode ? 'bg-[radial-gradient(#30363d_1px,transparent_1px)]' : 'bg-[radial-gradient(#e1e4e8_1px,transparent_1px)]'}`}></div>
         
         {analyzingNodeId && (
             <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none">
-                <div className="bg-white px-4 py-2 rounded-full border border-[#d0d7de] shadow-md flex items-center gap-3">
+                <div className={`px-4 py-2 rounded-full border shadow-md flex items-center gap-3 ${isDarkMode ? 'bg-[#161b22] border-[#30363d]' : 'bg-white border-[#d0d7de]'}`}>
                     <div className="w-2 h-2 bg-[#0969da] rounded-full animate-ping" />
-                    <span className="text-[#1f2328] text-xs font-semibold font-sans">Analyzing Structure...</span>
+                    <span className={`text-xs font-semibold font-sans ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>Analyzing Structure...</span>
                 </div>
             </div>
         )}
@@ -428,13 +458,13 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
         
         {/* Legend */}
         <div className="absolute bottom-6 left-6 pointer-events-none z-50">
-             <div className="bg-white/90 p-3 rounded-md border border-[#d0d7de] shadow-sm flex flex-col gap-2 backdrop-blur-sm">
-                 <div className="text-[10px] text-[#656d76] uppercase tracking-wider mb-1 font-bold">Legend</div>
-                 <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#54aeff]"></span><span className="text-xs text-[#1f2328]">Folder</span></div>
-                 <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#8b949e]"></span><span className="text-xs text-[#1f2328]">File</span></div>
-                 <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#d2a8ff]"></span><span className="text-xs text-[#1f2328]">Function</span></div>
-                 <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#ffa657]"></span><span className="text-xs text-[#1f2328]">Class</span></div>
-                 <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#7ee787]"></span><span className="text-xs text-[#1f2328]">Component</span></div>
+             <div className={`p-3 rounded-md border shadow-sm flex flex-col gap-2 backdrop-blur-sm ${isDarkMode ? 'bg-[#161b22]/90 border-[#30363d]' : 'bg-white/90 border-[#d0d7de]'}`}>
+                 <div className={`text-[10px] uppercase tracking-wider mb-1 font-bold ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`}>Legend</div>
+                 <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#54aeff]"></span><span className={`text-xs ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>Folder</span></div>
+                 <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#8b949e]"></span><span className={`text-xs ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>File</span></div>
+                 <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#d2a8ff]"></span><span className={`text-xs ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>Function</span></div>
+                 <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#ffa657]"></span><span className={`text-xs ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>Class</span></div>
+                 <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#7ee787]"></span><span className={`text-xs ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>Component</span></div>
              </div>
         </div>
     </div>
