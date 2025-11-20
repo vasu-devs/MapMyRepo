@@ -5,10 +5,9 @@ import { FileSystemNode } from '../types';
 interface FileUploaderProps {
     onUploadComplete: (rootNode: FileSystemNode) => void;
     isDarkMode?: boolean;
-    onToggleTheme?: () => void;
 }
 
-export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, isDarkMode = false, onToggleTheme }) => {
+export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, isDarkMode = false }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -280,7 +279,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, is
     };
 
     return (
-        <div className={`flex flex-col items-center justify-center h-full w-full font-sans transition-colors duration-300 cursor-none ${isDarkMode ? 'bg-[#0d1117] text-[#c9d1d9]' : 'bg-[#ffffff] text-[#1f2328]'}`}>
+        <div className={`flex flex-col items-center justify-center h-full w-full transition-colors duration-300 cursor-none ${isDarkMode ? 'bg-[#0d1117] text-white' : 'bg-[#ffffff] text-black'}`}>
 
             {/* Decorative Background Grid */}
             {/* Base Grid (Faint) */}
@@ -304,44 +303,17 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, is
                 }}
             >
                 {/* Inner Core */}
-                <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_10px_2px_rgba(56,139,253,0.8)] ${isDarkMode ? 'bg-white' : 'bg-[#0969da]'}`} />
+                <div className={`w-2.5 h-2.5 rounded-full ${isDarkMode ? 'bg-white shadow-[0_0_10px_2px_rgba(56,139,253,0.8)]' : 'bg-[#0969da] shadow-[0_0_15px_4px_rgba(9,105,218,0.4)]'}`} />
                 {/* Outer Ring Glow */}
-                <div className={`absolute inset-0 rounded-full opacity-50 blur-[2px] ${isDarkMode ? 'bg-[#58a6ff]' : 'bg-[#0969da]'}`} />
-            </div>
-
-            {/* Theme Toggle (Top Right) */}
-            <div className="absolute top-6 right-6 z-20">
-                <button
-                    onClick={onToggleTheme}
-                    className={`p-2 rounded-md border transition-all ${isDarkMode
-                            ? 'bg-[#21262d] border-[#30363d] text-[#c9d1d9] hover:bg-[#30363d]'
-                            : 'bg-white border-[#d0d7de] text-[#1f2328] hover:bg-[#f6f8fa]'
-                        }`}
-                >
-                    {isDarkMode ? '☀️' : '🌙'}
-                </button>
+                <div className={`absolute inset-0 rounded-full opacity-50 blur-[2px] ${isDarkMode ? 'bg-[#58a6ff]' : 'bg-[#8dd4fc]'}`} />
             </div>
 
             <div className="z-10 max-w-2xl w-full px-6">
 
                 {/* Header Section */}
                 <div className="mb-8 text-center">
-                    <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full border mb-4 shadow-sm ${isDarkMode ? 'bg-[#161b22] border-[#30363d]' : 'bg-[#f6f8fa] border-[#d0d7de]'
-                        }`}>
-                        {/* Repo/Map Icon */}
-                        <svg className={`w-8 h-8 ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <circle cx="12" cy="5" r="3" strokeWidth={1.5} />
-                            <circle cx="5" cy="19" r="3" strokeWidth={1.5} />
-                            <circle cx="19" cy="19" r="3" strokeWidth={1.5} />
-                            <line x1="12" y1="8" x2="5" y2="16" strokeWidth={1.5} />
-                            <line x1="12" y1="8" x2="19" y2="16" strokeWidth={1.5} />
-                        </svg>
-                    </div>
-                    <h1 className={`text-2xl font-semibold tracking-tight mb-2 ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>
-                        Map your repository
-                    </h1>
-                    <p className={`text-sm ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`}>
-                        Visualize your local codebase. Drag and drop a folder to generate an interactive map.
+                    <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                        Visualize your local codebase or GitHub repository.
                     </p>
                 </div>
 
@@ -353,9 +325,14 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, is
                         placeholder="Paste GitHub repo URL (e.g. github.com/owner/repo)"
                         value={repoUrl}
                         onChange={(e) => setRepoUrl(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !loading && repoUrl.trim()) {
+                                handleLoadFromGitHub();
+                            }
+                        }}
                         className={`flex-1 border rounded-md py-2 px-3 text-sm focus:outline-none transition-colors ${isDarkMode
-                                ? 'bg-[#0d1117] border-[#30363d] text-[#c9d1d9] placeholder-[#484f58] focus:border-[#58a6ff]'
-                                : 'bg-white border-[#d0d7de] text-[#1f2328] placeholder-[#656d76] focus:border-[#0969da]'
+                                ? 'bg-[#0d1117] border-[#30363d] text-white placeholder-gray-400 focus:border-[#58a6ff]'
+                                : 'bg-white border-[#d0d7de] text-black placeholder-gray-500 focus:border-[#0969da]'
                             }`}
                     />
                     <button
@@ -367,6 +344,19 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, is
                         {loading ? 'Loading...' : 'Load'}
                     </button>
                 </div>
+
+                {/* Separator */}
+                <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className={`w-full border-t ${isDarkMode ? 'border-[#30363d]' : 'border-[#d0d7de]'}`}></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                        <span className={`px-2 ${isDarkMode ? 'bg-[#0d1117] text-[#8b949e]' : 'bg-[#ffffff] text-[#656d76]'}`}>
+                            OR
+                        </span>
+                    </div>
+                </div>
+
                 <div
                     onClick={() => fileInputRef.current?.click()}
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -403,11 +393,11 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, is
                     )}
                 </div>
 
-                <div className={`mt-6 flex items-start gap-3 text-xs border rounded-md p-3 shadow-sm ${isDarkMode ? 'bg-[#161b22] border-[#30363d] text-[#8b949e]' : 'bg-white border-[#d0d7de] text-[#656d76]'
+                <div className={`mt-6 flex items-center justify-center gap-2 text-xs border rounded-md p-3 shadow-sm ${isDarkMode ? 'bg-[#161b22] border-[#30363d] text-[#8b949e]' : 'bg-white border-[#d0d7de] text-[#656d76]'
                     }`}>
-                    <svg className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <svg className={`w-4 h-4 flex-shrink-0 ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     <p>
-                        Pro tip: Dragging a folder directly onto the box above is the fastest way and avoids browser permission popups.
+                        <span className="font-semibold">Pro tip:</span> Dragging a folder directly onto the box above is the fastest way.
                     </p>
                 </div>
 

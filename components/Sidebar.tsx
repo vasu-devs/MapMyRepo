@@ -98,9 +98,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, isDarkMode = false }) =>
     };
 
     // Floating Glassmorphism Styles
-    const panelClasses = `fixed right-4 top-4 bottom-4 flex flex-col shadow-2xl z-20 transition-all duration-500 ease-out backdrop-blur-2xl rounded-3xl border ${isDarkMode
-        ? 'bg-[#0d1117]/80 border-white/10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)]'
-        : 'bg-white/70 border-white/40 shadow-[0_0_50px_-12px_rgba(0,0,0,0.1)]'
+    const panelClasses = `fixed right-4 top-24 bottom-4 flex flex-col shadow-2xl z-20 transition-all duration-500 ease-out backdrop-blur-3xl rounded-3xl border ${isDarkMode
+        ? 'bg-[#0d1117]/60 border-white/20 shadow-[0_0_50px_-12px_rgba(0,0,0,0.7)]'
+        : 'bg-white/60 border-white/60 shadow-[0_0_50px_-12px_rgba(0,0,0,0.2)]'
         }`;
 
     // Width transition: w-[400px] when expanded, w-16 when collapsed

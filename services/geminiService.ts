@@ -37,16 +37,10 @@ export const analyzeCode = async (fileName: string, fileContent: string): Promis
   const truncatedContent = fileContent.slice(0, 40000);
 
   const prompt = `
-    Analyze the following source code file named "${fileName}".
-    
-    1. Provide a "summary": A 2-3 sentence explanation of the architectural significance of this file. What role does it play in the broader application? (e.g., "Handles user authentication state," "Reusable UI button component," "Utility for date formatting").
-    
-    2. Identify the main exported functions, classes, or React components.
-    Return a list of these items with their name, type, and a very brief (10 words max) description.
-    
-    Ignore small helper utilities or private variables unless they are critical.
-    
-    Output Markdown for the summary.
+    Analyze "${fileName}".
+    1. Summary: 2 sentences on its architectural role.
+    2. Exports: List main functions/classes/components (max 10 words desc).
+    Output JSON.
   `;
 
   try {
@@ -63,7 +57,7 @@ export const analyzeCode = async (fileName: string, fileContent: string): Promis
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            summary: { type: Type.STRING, description: "Architectural significance and functionality summary (Markdown supported)" },
+            summary: { type: Type.STRING },
             items: {
               type: Type.ARRAY,
               items: {
@@ -101,16 +95,11 @@ export const analyzeFolder = async (node: FileSystemNode): Promise<string | null
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: `
-                Analyze the following folder structure from a software project.
-                Folder Name: ${node.name}
-                
+                Analyze folder: ${node.name}
                 Structure:
                 ${treeMap}
                 
-                Provide a concise (2-3 sentences) architectural summary of this folder. 
-                What is its responsibility? Does it contain features, utilities, assets, or core logic?
-                
-                Format as Markdown.
+                Summarize responsibility in 2 sentences.
             `
         });
         
@@ -140,19 +129,15 @@ export const askQuestion = async (node: FileSystemNode, question: string): Promi
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: `
-                You are an expert software architect explaining a codebase.
-                User is looking at: ${node.path} (${node.type}).
+                Expert dev explaining code.
+                Target: ${node.path} (${node.type}).
                 
                 Context:
                 ${context}
                 
-                User Question: "${question}"
+                Question: "${question}"
                 
-                Answer concisely (under 150 words). 
-                Use Markdown formatting.
-                - Use **bold** for key concepts.
-                - Use \`code\` for variable/function names.
-                - Use lists for steps or multiple points.
+                Answer <100 words. Use Markdown.
             `
         });
         return response.text || "No answer generated.";
