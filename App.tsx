@@ -18,10 +18,10 @@ const App: React.FC = () => {
 
   return (
     <div className={`flex flex-col h-screen w-screen overflow-hidden relative font-['JetBrains_Mono'] transition-colors duration-300 ${isDarkMode ? 'bg-[#0d1117] text-white' : 'bg-[#ffffff] text-black'}`}>
-      
+
       {/* Navbar */}
       <nav className="absolute top-0 left-0 right-0 flex items-center justify-between px-8 py-6 z-50 pointer-events-none">
-        
+
         {/* Left Side: Title (Home) or Upload New (Map) */}
         <div className="pointer-events-auto flex items-center gap-3">
           {!data && (
@@ -58,8 +58,8 @@ const App: React.FC = () => {
             href="https://github.com/vasu-devs/MapMyRepo"
             target="_blank"
             rel="noopener noreferrer"
-            className={`p-2 transition-all hover:scale-110 ${isDarkMode 
-              ? 'text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' 
+            className={`p-2 transition-all hover:scale-110 ${isDarkMode
+              ? 'text-white hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]'
               : 'text-black hover:drop-shadow-[0_0_8px_rgba(0,0,0,0.3)]'}`}
           >
             <svg height="24" viewBox="0 0 16 16" version="1.1" width="24" aria-hidden="true" fill="currentColor">
@@ -97,7 +97,7 @@ const App: React.FC = () => {
                 isDarkMode={isDarkMode}
               />
             </div>
-            <Sidebar node={selectedNode} isDarkMode={isDarkMode} />
+            <Sidebar node={selectedNode} rootNode={data} isDarkMode={isDarkMode} />
           </>
         )}
       </div>

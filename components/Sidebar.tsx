@@ -5,10 +5,11 @@ import { marked } from 'marked';
 
 interface SidebarProps {
     node: FileSystemNode | null;
+    rootNode: FileSystemNode | null;
     isDarkMode?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ node, isDarkMode = false }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = false }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [activeTab, setActiveTab] = useState<'DETAILS' | 'CHAT'>('DETAILS');
 
@@ -65,7 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, isDarkMode = false }) =>
             if (chatContainerRef.current) chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }, 10);
 
-        const answer = await askQuestion(node, userMsg.text);
+        const answer = await askQuestion(node, rootNode, userMsg.text);
 
         const aiMsg: ChatMessage = {
             role: 'ai',
