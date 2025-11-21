@@ -234,7 +234,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, is
         if (!repoUrl.trim()) return;
         setLoading(true);
         try {
-            const tree = await fetchGithubRepo(repoUrl.trim());
+            const tree = await fetchGithubRepo(repoUrl.trim(), import.meta.env.VITE_GITHUB_TOKEN);
             if (tree) {
                 onUploadComplete(tree);
             }
@@ -331,8 +331,8 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, is
                             }
                         }}
                         className={`flex-1 border rounded-md py-2 px-3 text-sm focus:outline-none transition-colors ${isDarkMode
-                                ? 'bg-[#0d1117] border-[#30363d] text-white placeholder-gray-400 focus:border-[#58a6ff]'
-                                : 'bg-white border-[#d0d7de] text-black placeholder-gray-500 focus:border-[#0969da]'
+                            ? 'bg-[#0d1117] border-[#30363d] text-white placeholder-gray-400 focus:border-[#58a6ff]'
+                            : 'bg-white border-[#d0d7de] text-black placeholder-gray-500 focus:border-[#0969da]'
                             }`}
                     />
                     <button
