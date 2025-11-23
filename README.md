@@ -52,7 +52,11 @@
 
 ## 🎬 Demo
 
-> **Note**: Add a demo GIF or screenshot here showcasing the graph visualization
+<div align="center">
+  <a href="https://youtu.be/EmTDrPzAo40?si=cf8X3JWwcOFvI7oD">
+    <img src="https://img.youtube.com/vi/EmTDrPzAo40/maxresdefault.jpg" alt="Watch the MapMyRepo Demo" width="600" />
+  </a>
+</div>
 
 Try visualizing any public repository:
 ```
