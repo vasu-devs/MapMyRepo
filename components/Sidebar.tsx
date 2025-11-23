@@ -99,13 +99,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = f
     };
 
     // Floating Glassmorphism Styles
-    const panelClasses = `fixed right-4 top-24 bottom-4 flex flex-col shadow-2xl z-20 transition-all duration-500 ease-out backdrop-blur-3xl rounded-3xl border ${isDarkMode
-        ? 'bg-[#0d1117]/60 border-white/20 shadow-[0_0_50px_-12px_rgba(0,0,0,0.7)]'
-        : 'bg-white/60 border-white/60 shadow-[0_0_50px_-12px_rgba(0,0,0,0.2)]'
+    const panelClasses = `fixed right-2 md:right-4 top-20 md:top-24 bottom-2 md:bottom-4 flex flex-col shadow-2xl z-[60] md:z-20 transition-all duration-500 ease-out backdrop-blur-3xl rounded-2xl md:rounded-3xl border md:border ${isDarkMode
+        ? 'bg-[#0d1117]/85 md:bg-[#0d1117]/60 border-white/20 shadow-[0_0_50px_-12px_rgba(0,0,0,0.7)]'
+        : 'bg-white/85 md:bg-white/60 border-white/60 shadow-[0_0_50px_-12px_rgba(0,0,0,0.2)]'
         }`;
 
-    // Width transition: w-[400px] when expanded, w-16 when collapsed
-    const widthClass = isCollapsed || !node ? 'w-16' : 'w-[400px]';
+    // Width transition: w-[calc(100vw-1rem)] when expanded, w-16 when collapsed
+    const widthClass = isCollapsed || !node ? 'w-0 md:w-16 translate-x-full md:translate-x-0' : 'w-[calc(100vw-1rem)] md:w-[400px] translate-x-0';
 
     return (
         <div className={`${panelClasses} ${widthClass}`}>
@@ -136,10 +136,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = f
             </div >
 
             {/* Expanded Content */}
-            < div className={`flex-1 flex flex-col overflow-hidden transition-all duration-500 ${isCollapsed ? 'opacity-0 translate-x-10 pointer-events-none absolute inset-0' : 'opacity-100 translate-x-0'}`}>
+            <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-500 ${isCollapsed ? 'opacity-0 translate-x-10 pointer-events-none absolute inset-0' : 'opacity-100 translate-x-0'}`}>
 
                 {/* Internal Toggle (only visible when expanded) */}
-                < div className="absolute left-4 top-5 z-30" >
+                <div className="absolute left-4 top-5 z-30" >
                     <button
                         onClick={() => setIsCollapsed(true)}
                         className={`p-2 rounded-xl transition-all duration-300 hover:scale-110 ${isDarkMode
@@ -149,7 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = f
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                     </button>
-                </div >
+                </div>
 
                 {node ? (
                     <>

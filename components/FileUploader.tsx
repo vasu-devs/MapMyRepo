@@ -364,7 +364,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, is
                     onDrop={handleDrop}
                     className={`
                 relative group cursor-pointer rounded-md border border-dashed transition-all duration-200
-                flex flex-col items-center justify-center py-12 px-8
+                flex flex-col items-center justify-center py-8 md:py-12 px-4 md:px-8
                 ${isDragging
                             ? (isDarkMode ? 'bg-[#161b22] border-[#58a6ff] ring-2 ring-[#58a6ff] ring-opacity-20' : 'bg-[#f3f9ff] border-[#0969da] ring-2 ring-[#0969da] ring-opacity-20')
                             : (isDarkMode ? 'bg-[#161b22] border-[#30363d] hover:bg-[#21262d] hover:border-[#8b949e]' : 'bg-[#f6f8fa] border-[#d0d7de] hover:bg-[#f3f4f6] hover:border-[#8c959f]')
