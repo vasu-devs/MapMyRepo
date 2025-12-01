@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChatMessage, FileSystemNode, NodeType } from '../types';
+import { ChatMessage, FileSystemNode, NodeType, UniverseNode } from '../types';
 import { askQuestion, analyzeFolder } from '../services/geminiService';
 import { marked } from 'marked';
 
 interface SidebarProps {
     node: FileSystemNode | null;
+    universeNode?: UniverseNode | null;
     rootNode: FileSystemNode | null;
     isDarkMode?: boolean;
+    theme?: 'modern' | 'crayon' | 'pencil';
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = false }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ node, universeNode, rootNode, isDarkMode = false, theme = 'modern' }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [activeTab, setActiveTab] = useState<'DETAILS' | 'CHAT'>('DETAILS');
 
@@ -25,18 +27,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = f
     const [, setForceUpdate] = useState(0);
     const chatContainerRef = useRef<HTMLDivElement>(null);
 
+    const activeNode = node || universeNode;
+
     useEffect(() => {
-        if (node) {
+        if (activeNode) {
             if (chatContainerRef.current) {
                 chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
             }
 
-            // Automatic Folder Analysis
-            if (node.type === NodeType.FOLDER && !node.summary && !isAnalyzingFolder) {
+            // Automatic Folder Analysis (Only for FileSystemNode)
+            if (node && node.type === NodeType.FOLDER && !node.summary && !isAnalyzingFolder) {
                 performFolderAnalysis(node);
             }
         }
-    }, [node, activeTab]);
+    }, [activeNode, activeTab]);
 
     const performFolderAnalysis = async (targetNode: FileSystemNode) => {
         setIsAnalyzingFolder(true);
@@ -49,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = f
     };
 
     const handleSendMessage = async () => {
-        if (!input.trim() || !node) return;
+        if (!input.trim() || !activeNode) return;
 
         const userMsg: ChatMessage = {
             role: 'user',
@@ -66,7 +70,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = f
             if (chatContainerRef.current) chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }, 10);
 
-        const answer = await askQuestion(node, rootNode, userMsg.text);
+        let answer = "I can't answer that right now.";
+
+        if (node) {
+            answer = await askQuestion(node, rootNode, userMsg.text);
+        } else if (universeNode) {
+            // Simple mock response for Universe nodes for now, or use Gemini if we had a service for it
+            if (universeNode.type === 'REPO') {
+                answer = `I see you're interested in **${universeNode.name}**. It's a ${universeNode.language} repository with ${universeNode.stargazers_count} stars. I can help you understand its structure if you visualize it!`;
+            } else if (universeNode.type === 'LANGUAGE') {
+                answer = `**${universeNode.name}** is a popular programming language. You have several repositories using it.`;
+            } else if (universeNode.type === 'USER') {
+                answer = `This is the universe of **${universeNode.name}**. It contains all their public repositories grouped by language.`;
+            }
+        }
 
         const aiMsg: ChatMessage = {
             role: 'ai',
@@ -82,13 +99,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = f
         }, 10);
     };
 
-    const getIcon = (type: NodeType) => {
+    const getIcon = (type: string) => {
         switch (type) {
             case NodeType.FOLDER: return '📂';
             case NodeType.FILE: return '📄';
             case NodeType.FUNCTION: return 'ƒ';
             case NodeType.CLASS: return 'C';
             case NodeType.COMPONENT: return '⚛';
+            case 'USER': return '👤';
+            case 'LANGUAGE': return '🌐';
+            case 'REPO': return '📦';
             default: return '?';
         }
     };
@@ -98,20 +118,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = f
         return { __html: rawMarkup };
     };
 
-    // Floating Glassmorphism Styles
-    const panelClasses = `fixed right-2 md:right-4 top-20 md:top-24 bottom-2 md:bottom-4 flex flex-col shadow-2xl z-[60] md:z-20 transition-all duration-500 ease-out backdrop-blur-3xl rounded-2xl md:rounded-3xl border md:border ${isDarkMode
-        ? 'bg-[#0d1117]/85 md:bg-[#0d1117]/60 border-white/20 shadow-[0_0_50px_-12px_rgba(0,0,0,0.7)]'
-        : 'bg-white/85 md:bg-white/60 border-white/60 shadow-[0_0_50px_-12px_rgba(0,0,0,0.2)]'
+    // Styles based on Theme
+    const isPencil = theme === 'pencil';
+    const isCrayon = theme === 'crayon';
+
+    const panelClasses = `fixed right-2 md:right-4 top-20 md:top-24 bottom-2 md:bottom-4 flex flex-col z-[60] md:z-20 transition-all duration-500 ease-out 
+        ${isPencil
+            ? 'bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-lg'
+            : (isDarkMode
+                ? 'bg-[#0d1117]/85 md:bg-[#0d1117]/60 border border-white/20 shadow-[0_0_50px_-12px_rgba(0,0,0,0.7)] backdrop-blur-3xl rounded-2xl md:rounded-3xl'
+                : 'bg-white/85 md:bg-white/60 border border-white/60 shadow-[0_0_50px_-12px_rgba(0,0,0,0.2)] backdrop-blur-3xl rounded-2xl md:rounded-3xl')
         }`;
 
     // Width transition: w-[calc(100vw-1rem)] when expanded, w-16 when collapsed
-    const widthClass = isCollapsed || !node ? 'w-0 md:w-16 translate-x-full md:translate-x-0' : 'w-[calc(100vw-1rem)] md:w-[400px] translate-x-0';
+    const widthClass = isCollapsed || !activeNode ? 'w-0 md:w-16 translate-x-full md:translate-x-0' : 'w-[calc(100vw-1rem)] md:w-[400px] translate-x-0';
 
     return (
-        <div className={`${panelClasses} ${widthClass}`}>
+        <div className={`${panelClasses} ${widthClass} ${isPencil || isCrayon ? "font-['Patrick_Hand']" : ""}`}>
 
             {/* Collapsed Dock Content */}
-            <div className={`flex flex-col items-center py-6 h-full transition-opacity duration-300 ${!isCollapsed && node ? 'hidden' : 'flex'}`}>
+            <div className={`flex flex-col items-center py-6 h-full transition-opacity duration-300 ${!isCollapsed && activeNode ? 'hidden' : 'flex'}`}>
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
                     className={`p-3 rounded-2xl transition-all duration-300 group ${isDarkMode
@@ -151,22 +177,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = f
                     </button>
                 </div>
 
-                {node ? (
+                {activeNode ? (
                     <>
                         {/* Header */}
                         <div className={`p-6 pl-16 border-b ${isDarkMode ? 'border-white/5 bg-white/5' : 'border-black/5 bg-white/40'}`}>
                             <div className="flex items-start gap-4">
                                 <div className={`p-2.5 rounded-xl border text-2xl shadow-sm backdrop-blur-md ${isDarkMode ? 'bg-[#0d1117]/50 border-white/10' : 'bg-white/50 border-white/50'}`}>
-                                    {getIcon(node.type)}
+                                    {getIcon(activeNode.type)}
                                 </div>
                                 <div className="overflow-hidden flex-1 pt-0.5">
                                     <div className="flex items-center gap-2">
-                                        <h2 className={`text-lg font-bold truncate tracking-tight ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>{node.name}</h2>
+                                        <h2 className={`text-lg font-bold truncate tracking-tight ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>{activeNode.name}</h2>
                                     </div>
                                     <div className="flex items-center gap-2 mt-1.5">
                                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider border ${isDarkMode ? 'bg-[#21262d] text-[#8b949e] border-white/5' : 'bg-black/5 text-[#656d76] border-black/5'
-                                            }`}>{node.type}</span>
-                                        <div className={`text-xs font-mono truncate opacity-60 ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`} title={node.path}>{node.path}</div>
+                                            }`}>{activeNode.type}</span>
+                                        {/* Show path for FileSystemNode, or extra info for UniverseNode */}
+                                        {node && <div className={`text-xs font-mono truncate opacity-60 ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`} title={node.path}>{node.path}</div>}
+                                        {universeNode && universeNode.type === 'REPO' && <div className={`text-xs font-mono truncate opacity-60 ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`}>⭐ {universeNode.stargazers_count}</div>}
                                     </div>
                                 </div>
                             </div>
@@ -201,8 +229,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = f
                             {activeTab === 'DETAILS' && (
                                 <div className="h-full overflow-y-auto p-6 space-y-8 custom-scrollbar">
 
-                                    {/* Summary */}
-                                    {node.summary ? (
+                                    {/* FileSystemNode Summary */}
+                                    {node && node.summary ? (
                                         <div className="animate-fadeIn">
                                             <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 opacity-70 ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>
                                                 Purpose & Architecture
@@ -212,22 +240,82 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = f
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="text-center py-12">
-                                            {isAnalyzingFolder ? (
-                                                <div className={`flex flex-col items-center gap-3 ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`}>
-                                                    <div className={`w-5 h-5 border-2 border-t-transparent rounded-full animate-spin ${isDarkMode ? 'border-[#8b949e]' : 'border-[#656d76]'}`}></div>
-                                                    <p className="text-xs font-medium">Analyzing contents...</p>
+                                        node && (
+                                            <div className="text-center py-12">
+                                                {isAnalyzingFolder ? (
+                                                    <div className={`flex flex-col items-center gap-3 ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`}>
+                                                        <div className={`w-5 h-5 border-2 border-t-transparent rounded-full animate-spin ${isDarkMode ? 'border-[#8b949e]' : 'border-[#656d76]'}`}></div>
+                                                        <p className="text-xs font-medium">Analyzing contents...</p>
+                                                    </div>
+                                                ) : (
+                                                    <p className={`text-xs ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`}>No description available.</p>
+                                                )}
+                                            </div>
+                                        )
+                                    )}
+
+                                    {/* UniverseNode Details */}
+                                    {universeNode && (
+                                        <div className="animate-fadeIn">
+                                            {universeNode.type === 'REPO' && universeNode.data && (
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <h3 className={`text-xs font-bold uppercase tracking-wider mb-2 opacity-70 ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>Description</h3>
+                                                        <p className={`text-sm ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>{universeNode.data.description || "No description provided."}</p>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className={`p-3 rounded-lg border ${isDarkMode ? 'border-white/10 bg-white/5' : 'border-black/5 bg-black/5'}`}>
+                                                            <div className="text-xs opacity-70">Stars</div>
+                                                            <div className="text-lg font-bold">{universeNode.data.stargazers_count}</div>
+                                                        </div>
+                                                        <div className={`p-3 rounded-lg border ${isDarkMode ? 'border-white/10 bg-white/5' : 'border-black/5 bg-black/5'}`}>
+                                                            <div className="text-xs opacity-70">Forks</div>
+                                                            <div className="text-lg font-bold">{universeNode.data.forks_count}</div>
+                                                        </div>
+                                                        <div className={`p-3 rounded-lg border ${isDarkMode ? 'border-white/10 bg-white/5' : 'border-black/5 bg-black/5'}`}>
+                                                            <div className="text-xs opacity-70">Language</div>
+                                                            <div className="text-lg font-bold">{universeNode.data.language || "N/A"}</div>
+                                                        </div>
+                                                        <div className={`p-3 rounded-lg border ${isDarkMode ? 'border-white/10 bg-white/5' : 'border-black/5 bg-black/5'}`}>
+                                                            <div className="text-xs opacity-70">Issues</div>
+                                                            <div className="text-lg font-bold">{universeNode.data.open_issues_count}</div>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        className={`w-full py-2 rounded-lg font-bold text-sm transition-all ${isDarkMode ? 'bg-[#238636] text-white hover:bg-[#2ea043]' : 'bg-[#2da44e] text-white hover:bg-[#2c974b]'}`}
+                                                        onClick={() => window.open(universeNode.data?.html_url, '_blank')}
+                                                    >
+                                                        View on GitHub
+                                                    </button>
                                                 </div>
-                                            ) : (
-                                                <p className={`text-xs ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`}>No description available.</p>
+                                            )}
+                                            {universeNode.type === 'LANGUAGE' && (
+                                                <div className="text-center py-8">
+                                                    <div className="text-4xl mb-4">🌐</div>
+                                                    <p className={`text-sm ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>
+                                                        This cluster represents all your repositories written in <strong>{universeNode.name}</strong>.
+                                                        <br /><br />
+                                                        Click on the planet to expand/collapse the repositories.
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {universeNode.type === 'USER' && (
+                                                <div className="text-center py-8">
+                                                    <div className="text-4xl mb-4">👤</div>
+                                                    <p className={`text-sm ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>
+                                                        This is your GitHub Universe.
+                                                        <br /><br />
+                                                        Planets represent languages, and satellites are your repositories.
+                                                    </p>
+                                                </div>
                                             )}
                                         </div>
                                     )}
 
                                     <hr className={`border-t ${isDarkMode ? 'border-white/5' : 'border-black/5'}`} />
 
-                                    {/* Code Preview */}
-                                    {node.type === NodeType.FILE && node.content && (
+                                    {/* Code Preview (FileSystemNode only) */}
+                                    {node && node.type === NodeType.FILE && node.content && (
                                         <div className="animate-fadeIn delay-100">
                                             <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 opacity-70 ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>Code Preview</h3>
                                             <div className={`rounded-xl border overflow-hidden shadow-inner ${isDarkMode ? 'border-white/5 bg-[#0d1117]/30' : 'border-black/5 bg-[#f6f8fa]/50'}`}>
@@ -240,8 +328,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = f
                                         </div>
                                     )}
 
-                                    {/* Children List */}
-                                    {node.children && node.children.length > 0 && (
+                                    {/* Children List (FileSystemNode only) */}
+                                    {node && node.children && node.children.length > 0 && (
                                         <div className="animate-fadeIn delay-200">
                                             <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 opacity-70 ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>
                                                 {node.type === NodeType.FOLDER ? 'Contents' : 'Defined Symbols'}
@@ -330,7 +418,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, rootNode, isDarkMode = f
                     <div className={`flex-1 flex items-center justify-center p-10 text-center ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`}>
                         <div className="animate-pulse">
                             <div className="text-5xl mb-4 opacity-20">←</div>
-                            <p className="text-sm font-medium">Select a file or folder to view details</p>
+                            <p className="text-sm font-medium">Select a node to view details</p>
                         </div>
                     </div>
                 )}

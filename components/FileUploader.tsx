@@ -5,9 +5,10 @@ import { FileSystemNode } from '../types';
 interface FileUploaderProps {
     onUploadComplete: (rootNode: FileSystemNode) => void;
     isDarkMode?: boolean;
+    theme?: 'modern' | 'crayon' | 'pencil';
 }
 
-export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, isDarkMode = false }) => {
+export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, isDarkMode = false, theme = 'modern' }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -278,21 +279,40 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, is
         }
     };
 
+    // --- Theme Helpers ---
+    const isPencil = theme === 'pencil';
+    const isCrayon = theme === 'crayon';
+
+    // Sketchy Border Radius for Pencil Theme
+    const sketchyBorder = isPencil ? { borderRadius: '255px 15px 225px 15px / 15px 225px 15px 255px' } : {};
+
     return (
-        <div className={`flex flex-col items-center justify-center h-full w-full transition-colors duration-300 cursor-none ${isDarkMode ? 'bg-[#0d1117] text-white' : 'bg-[#ffffff] text-black'}`}>
+        <div className={`flex flex-col items-center justify-center h-full w-full transition-colors duration-300 cursor-none relative overflow-hidden
+            ${isDarkMode ? 'bg-[#0d1117] text-white' : 'bg-[#ffffff] text-black'}
+            ${(isPencil || isCrayon) ? "font-['Patrick_Hand']" : ""}
+        `}>
 
-            {/* Decorative Background Grid */}
-            {/* Base Grid (Faint) */}
-            <div className={`absolute inset-0 bg-[linear-gradient(${isDarkMode ? '#30363d' : '#e1e4e8'}_1px,transparent_1px),linear-gradient(90deg,${isDarkMode ? '#30363d' : '#e1e4e8'}_1px,transparent_1px)] bg-[size:32px_32px] opacity-[0.2] pointer-events-none`} />
+            {/* Background */}
+            {isPencil ? (
+                <div className="absolute inset-0 pointer-events-none opacity-40"
+                    style={{
+                        backgroundImage: isDarkMode
+                            ? 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.1\' fill=\'%23ffffff\'/%3E%3C/svg%3E")'
+                            : 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.05\'/%3E%3C/svg%3E")'
+                    }}
+                />
+            ) : (
+                <div className={`absolute inset-0 bg-[linear-gradient(${isDarkMode ? '#30363d' : '#e1e4e8'}_1px,transparent_1px),linear-gradient(90deg,${isDarkMode ? '#30363d' : '#e1e4e8'}_1px,transparent_1px)] bg-[size:32px_32px] opacity-[0.2] pointer-events-none`} />
+            )}
 
-            {/* Interactive Grid Canvas (Streak Effect) */}
+            {/* Interactive Grid Canvas (Streak Effect) - Hide in Pencil Mode for cleaner look? Or keep? Keeping for now but maybe subtle. */}
             <canvas
                 ref={canvasRef}
                 className="absolute inset-0 pointer-events-none transition-opacity duration-500"
                 style={{ opacity: hasMoved ? 1 : 0 }}
             />
 
-            {/* Cursor Node (The actual cursor replacement) */}
+            {/* Cursor Node */}
             <div
                 ref={nodeRef}
                 className="fixed pointer-events-none transition-opacity duration-500 top-0 left-0 z-50 flex items-center justify-center"
@@ -302,17 +322,15 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, is
                     opacity: hasMoved ? 1 : 0,
                 }}
             >
-                {/* Inner Core */}
-                <div className={`w-2.5 h-2.5 rounded-full ${isDarkMode ? 'bg-white shadow-[0_0_10px_2px_rgba(56,139,253,0.8)]' : 'bg-[#0969da] shadow-[0_0_15px_4px_rgba(9,105,218,0.4)]'}`} />
-                {/* Outer Ring Glow */}
-                <div className={`absolute inset-0 rounded-full opacity-50 blur-[2px] ${isDarkMode ? 'bg-[#58a6ff]' : 'bg-[#8dd4fc]'}`} />
+                <div className={`w-2.5 h-2.5 rounded-full ${isPencil ? (isDarkMode ? 'bg-white' : 'bg-black') : (isDarkMode ? 'bg-white shadow-[0_0_10px_2px_rgba(56,139,253,0.8)]' : 'bg-[#0969da] shadow-[0_0_15px_4px_rgba(9,105,218,0.4)]')}`} />
+                {!isPencil && <div className={`absolute inset-0 rounded-full opacity-50 blur-[2px] ${isDarkMode ? 'bg-[#58a6ff]' : 'bg-[#8dd4fc]'}`} />}
             </div>
 
             <div className="z-10 max-w-2xl w-full px-6">
 
                 {/* Header Section */}
                 <div className="mb-8 text-center">
-                    <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                    <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-black'} ${isPencil ? 'text-lg font-bold tracking-wider' : ''}`}>
                         Visualize your local codebase or GitHub repository.
                     </p>
                 </div>
@@ -330,15 +348,21 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, is
                                 handleLoadFromGitHub();
                             }
                         }}
-                        className={`flex-1 border rounded-md py-2 px-3 text-sm focus:outline-none transition-colors ${isDarkMode
-                            ? 'bg-[#0d1117] border-[#30363d] text-white placeholder-gray-400 focus:border-[#58a6ff]'
-                            : 'bg-white border-[#d0d7de] text-black placeholder-gray-500 focus:border-[#0969da]'
+                        style={sketchyBorder}
+                        className={`flex-1 border py-2 px-3 text-sm focus:outline-none transition-all 
+                        ${isPencil
+                                ? (isDarkMode ? 'bg-[#0d1117] border-white text-white placeholder-gray-500 focus:border-white focus:ring-1 focus:ring-white' : 'bg-white border-black text-black placeholder-gray-500 focus:border-black focus:ring-1 focus:ring-black')
+                                : (isDarkMode ? 'bg-[#0d1117] border-[#30363d] text-white placeholder-gray-400 focus:border-[#58a6ff] rounded-md' : 'bg-white border-[#d0d7de] text-black placeholder-gray-500 focus:border-[#0969da] rounded-md')
                             }`}
                     />
                     <button
                         onClick={handleLoadFromGitHub}
                         disabled={loading || !repoUrl.trim()}
-                        className={`px-3 py-2 text-white rounded-md disabled:opacity-50 text-sm transition-colors ${isDarkMode ? 'bg-[#238636] hover:bg-[#2ea043]' : 'bg-[#0969da] hover:bg-[#0860ca]'
+                        style={sketchyBorder}
+                        className={`px-4 py-2 text-white disabled:opacity-50 text-sm transition-all transform active:scale-95
+                        ${isPencil
+                                ? (isDarkMode ? 'bg-white text-black border-2 border-transparent hover:border-white hover:bg-black hover:text-white font-bold' : 'bg-black text-white border-2 border-transparent hover:border-black hover:bg-white hover:text-black font-bold')
+                                : (isDarkMode ? 'bg-[#238636] hover:bg-[#2ea043] rounded-md' : 'bg-[#0969da] hover:bg-[#0860ca] rounded-md')
                             }`}
                     >
                         {loading ? 'Loading...' : 'Load'}
@@ -348,10 +372,10 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, is
                 {/* Separator */}
                 <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
-                        <div className={`w-full border-t ${isDarkMode ? 'border-[#30363d]' : 'border-[#d0d7de]'}`}></div>
+                        <div className={`w-full border-t ${isPencil ? (isDarkMode ? 'border-white/30' : 'border-black/30') : (isDarkMode ? 'border-[#30363d]' : 'border-[#d0d7de]')}`}></div>
                     </div>
                     <div className="relative flex justify-center text-sm">
-                        <span className={`px-2 ${isDarkMode ? 'bg-[#0d1117] text-[#8b949e]' : 'bg-[#ffffff] text-[#656d76]'}`}>
+                        <span className={`px-2 ${isPencil ? 'font-bold' : ''} ${isDarkMode ? 'bg-[#0d1117] text-[#8b949e]' : 'bg-[#ffffff] text-[#656d76]'}`}>
                             OR
                         </span>
                     </div>
@@ -362,12 +386,20 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, is
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleDrop}
+                    style={isPencil ? {
+                        borderRadius: '255px 15px 225px 15px / 15px 225px 15px 255px',
+                        borderWidth: '2px'
+                    } : {}}
                     className={`
-                relative group cursor-pointer rounded-md border border-dashed transition-all duration-200
+                relative group cursor-pointer border-dashed transition-all duration-200
                 flex flex-col items-center justify-center py-8 md:py-12 px-4 md:px-8
-                ${isDragging
-                            ? (isDarkMode ? 'bg-[#161b22] border-[#58a6ff] ring-2 ring-[#58a6ff] ring-opacity-20' : 'bg-[#f3f9ff] border-[#0969da] ring-2 ring-[#0969da] ring-opacity-20')
-                            : (isDarkMode ? 'bg-[#161b22] border-[#30363d] hover:bg-[#21262d] hover:border-[#8b949e]' : 'bg-[#f6f8fa] border-[#d0d7de] hover:bg-[#f3f4f6] hover:border-[#8c959f]')
+                ${isPencil
+                            ? (isDragging
+                                ? (isDarkMode ? 'bg-[#161b22] border-white text-white scale-[1.02]' : 'bg-gray-50 border-black text-black scale-[1.02]')
+                                : (isDarkMode ? 'bg-transparent border-white/50 hover:border-white hover:bg-[#161b22]' : 'bg-transparent border-black/50 hover:border-black hover:bg-gray-50'))
+                            : (isDragging
+                                ? (isDarkMode ? 'bg-[#161b22] border-[#58a6ff] ring-2 ring-[#58a6ff] ring-opacity-20 rounded-md' : 'bg-[#f3f9ff] border-[#0969da] ring-2 ring-[#0969da] ring-opacity-20 rounded-md')
+                                : (isDarkMode ? 'bg-[#161b22] border-[#30363d] hover:bg-[#21262d] hover:border-[#8b949e] rounded-md' : 'bg-[#f6f8fa] border-[#d0d7de] hover:bg-[#f3f4f6] hover:border-[#8c959f] rounded-md'))
                         }
             `}
                 >
@@ -380,21 +412,26 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, is
                         <>
                             <div className={`mb-2 transition-colors ${isDarkMode ? 'text-[#8b949e] group-hover:text-[#c9d1d9]' : 'text-[#656d76] group-hover:text-[#1f2328]'}`}>
                                 <svg className="w-8 h-8 mx-auto mb-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isPencil ? 2.5 : 1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                                 </svg>
-                                <span className="text-sm font-semibold block text-center">
+                                <span className={`text-sm block text-center ${isPencil ? 'font-bold text-lg' : 'font-semibold'}`}>
                                     Upload a directory
                                 </span>
                             </div>
                             <span className={`text-xs ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`}>
-                                Drag & drop or <span className={`${isDarkMode ? 'text-[#58a6ff]' : 'text-[#0969da]'} hover:underline`}>browse</span>
+                                Drag & drop or <span className={`${isPencil ? (isDarkMode ? 'text-white underline' : 'text-black underline') : (isDarkMode ? 'text-[#58a6ff]' : 'text-[#0969da]')} hover:underline`}>browse</span>
                             </span>
                         </>
                     )}
                 </div>
 
-                <div className={`mt-6 flex items-center justify-center gap-2 text-xs border rounded-md p-3 shadow-sm ${isDarkMode ? 'bg-[#161b22] border-[#30363d] text-[#8b949e]' : 'bg-white border-[#d0d7de] text-[#656d76]'
-                    }`}>
+                <div className={`mt-6 flex items-center justify-center gap-2 text-xs border p-3 shadow-sm 
+                    ${isPencil
+                        ? (isDarkMode ? 'bg-[#161b22] border-white text-white' : 'bg-white border-black text-black')
+                        : (isDarkMode ? 'bg-[#161b22] border-[#30363d] text-[#8b949e] rounded-md' : 'bg-white border-[#d0d7de] text-[#656d76] rounded-md')
+                    }`}
+                    style={sketchyBorder}
+                >
                     <svg className={`w-4 h-4 flex-shrink-0 ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     <p>
                         <span className="font-semibold">Pro tip:</span> Dragging a folder directly onto the box above is the fastest way.

@@ -8,9 +8,10 @@ interface RepoVisualizerProps {
     data: FileSystemNode;
     onNodeSelect: (node: FileSystemNode) => void;
     isDarkMode: boolean;
+    theme: 'modern' | 'crayon' | 'pencil';
 }
 
-export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSelect, isDarkMode }) => {
+export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSelect, isDarkMode, theme }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
 
@@ -37,6 +38,122 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
 
         svg.selectAll("*").remove();
 
+        // Define filters for Crayon/Pencil theme
+        const defs = svg.append("defs");
+
+        // Sketchy Border Filter
+        const filter = defs.append("filter")
+            .attr("id", "sketchy-border-repo")
+            .attr("height", "150%")
+            .attr("width", "150%")
+            .attr("x", "-25%")
+            .attr("y", "-25%");
+
+        filter.append("feTurbulence")
+            .attr("baseFrequency", "0.05")
+            .attr("numOctaves", "2")
+            .attr("result", "noise")
+            .attr("type", "fractalNoise");
+
+        filter.append("feDisplacementMap")
+            .attr("in", "SourceGraphic")
+            .attr("in2", "noise")
+            .attr("scale", "3");
+
+        // --- PATTERNS FOR PENCIL THEME ---
+        const strokeColor = isDarkMode ? '#ffffff' : '#000000';
+
+        // 1. Cross-Hatch (for Folders)
+        const patternFolder = defs.append("pattern")
+            .attr("id", "pattern-folder")
+            .attr("patternUnits", "userSpaceOnUse")
+            .attr("width", 8)
+            .attr("height", 8)
+            .attr("patternTransform", "rotate(45)");
+
+        patternFolder.append("rect")
+            .attr("width", 8)
+            .attr("height", 8)
+            .attr("fill", isDarkMode ? "#0d1117" : "#ffffff");
+
+        patternFolder.append("path")
+            .attr("d", "M0 0L8 8M8 0L0 8")
+            .attr("stroke", strokeColor)
+            .attr("stroke-width", 0.5);
+
+        // 2. Dots (for Files)
+        const patternFile = defs.append("pattern")
+            .attr("id", "pattern-file")
+            .attr("patternUnits", "userSpaceOnUse")
+            .attr("width", 6)
+            .attr("height", 6);
+
+        patternFile.append("circle")
+            .attr("cx", 3)
+            .attr("cy", 3)
+            .attr("r", 1)
+            .attr("fill", strokeColor);
+
+        // 3. Diagonal Lines (for Functions)
+        const patternFunction = defs.append("pattern")
+            .attr("id", "pattern-function")
+            .attr("patternUnits", "userSpaceOnUse")
+            .attr("width", 6)
+            .attr("height", 6)
+            .attr("patternTransform", "rotate(45)");
+
+        patternFunction.append("line")
+            .attr("x1", 0)
+            .attr("y1", 0)
+            .attr("x2", 0)
+            .attr("y2", 6)
+            .attr("stroke", strokeColor)
+            .attr("stroke-width", 1);
+
+        // 4. Double Diagonal (for Classes)
+        const patternClass = defs.append("pattern")
+            .attr("id", "pattern-class")
+            .attr("patternUnits", "userSpaceOnUse")
+            .attr("width", 8)
+            .attr("height", 8)
+            .attr("patternTransform", "rotate(45)");
+
+        patternClass.append("path")
+            .attr("d", "M0 0L8 8M8 0L0 8")
+            .attr("stroke", strokeColor)
+            .attr("stroke-width", 1);
+
+        // 5. Dense Dots (for Components)
+        const patternComponent = defs.append("pattern")
+            .attr("id", "pattern-component")
+            .attr("patternUnits", "userSpaceOnUse")
+            .attr("width", 4)
+            .attr("height", 4);
+
+        patternComponent.append("circle")
+            .attr("cx", 2)
+            .attr("cy", 2)
+            .attr("r", 1)
+            .attr("fill", strokeColor);
+
+
+        // Glow Filter for Modern Theme
+        const glowFilter = defs.append("filter")
+            .attr("id", "glow-repo")
+            .attr("x", "-50%")
+            .attr("y", "-50%")
+            .attr("width", "200%")
+            .attr("height", "200%");
+
+        glowFilter.append("feGaussianBlur")
+            .attr("stdDeviation", "2.5")
+            .attr("result", "coloredBlur");
+
+        const feMerge = glowFilter.append("feMerge");
+        feMerge.append("feMergeNode").attr("in", "coloredBlur");
+        feMerge.append("feMergeNode").attr("in", "SourceGraphic");
+
+
         const g = svg.append("g");
         zoomGroupRef.current = g;
 
@@ -57,22 +174,20 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
                 .id(d => d.id)
                 .distance(d => {
                     const target = d.target as GraphNode;
-                    // Increased distances for better separation
                     if (target.type === NodeType.FUNCTION) return 80;
                     if (target.type === NodeType.FILE) return 120;
                     return 180;
                 })
                 .strength(0.4)
             )
-            .force("charge", d3.forceManyBody().strength(-500)) // Stronger repulsion
+            .force("charge", d3.forceManyBody().strength(-500))
             .force("collide", d3.forceCollide()
                 .radius(d => {
-                    // Add buffer for text labels to reduce overlap
                     const size = getNodeSize((d as GraphNode).type);
                     return size + 30;
                 })
                 .strength(0.9)
-                .iterations(3) // More iterations for better stability
+                .iterations(3)
             )
             .force("x", d3.forceX().strength(0.05))
             .force("y", d3.forceY().strength(0.05));
@@ -94,9 +209,9 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
         return () => {
             simulationRef.current?.stop();
         };
-    }, [data]);
+    }, [data, isDarkMode]); // Re-run if data or dark mode changes (for patterns)
 
-    // --- 3. Data Update Effect ---
+    // --- 3. Data & Theme Update Effect ---
     useEffect(() => {
         const simulation = simulationRef.current;
         const linkGroup = linkGroupRef.current;
@@ -120,19 +235,23 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
         const linkEnter = linkSelection.enter().append("line");
 
         const newLinks = linkEnter.merge(linkSelection as any)
-            .attr("stroke", isDarkMode ? "#7d8590" : "#57606a")
+            .attr("stroke", theme === 'pencil' ? (isDarkMode ? "#ffffff" : "#000000") : (isDarkMode ? "#7d8590" : "#57606a"))
             .attr("stroke-opacity", d => {
+                if (theme === 'pencil') return 0.6;
                 const target = d.target as GraphNode;
                 const depth = target.depth || 1;
-                // Fade out deeper levels
                 return Math.max(0.2, 0.8 - (depth * 0.12));
             })
             .attr("stroke-width", d => {
                 const target = d.target as GraphNode;
                 const depth = target.depth || 1;
-                // Thicker near root, thinner deeper down
-                return Math.max(1, 5 - (depth * 0.8));
-            });
+                // Thicker strokes for Crayon/Pencil theme
+                const baseWidth = Math.max(1, 5 - (depth * 0.8));
+                return (theme === 'crayon' || theme === 'pencil') ? baseWidth + 1 : baseWidth;
+            })
+            .attr("stroke-dasharray", "none")
+            // Apply sketchy filter to links in Crayon/Pencil mode
+            .attr("filter", (theme === 'crayon' || theme === 'pencil') ? "url(#sketchy-border-repo)" : null);
 
         // Update Nodes
         const nodeSelection = nodeGroup.selectAll("g")
@@ -156,24 +275,31 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
         // Circle
         nodeEnter.append("circle")
             .attr("r", d => getNodeSize(d.type))
-            .attr("fill", d => getNodeColor(d.type))
-            .attr("stroke", isDarkMode ? "#0d1117" : "#ffffff")
+            .attr("fill", d => {
+                if (theme === 'pencil') {
+                    switch (d.type) {
+                        case NodeType.FOLDER: return "url(#pattern-folder)";
+                        case NodeType.FILE: return "url(#pattern-file)";
+                        case NodeType.FUNCTION: return "url(#pattern-function)";
+                        case NodeType.CLASS: return "url(#pattern-class)";
+                        case NodeType.COMPONENT: return "url(#pattern-component)";
+                        default: return "#ffffff";
+                    }
+                }
+                return getNodeColor(d.type);
+            })
+            .attr("stroke", isDarkMode ? "#ffffff" : "#000000")
             .attr("stroke-width", 2)
-            .style("cursor", "pointer")
-            .attr("filter", "drop-shadow(0px 1px 2px rgba(0,0,0,0.1))");
+            .style("cursor", "pointer");
 
         // Label
         nodeEnter.append("text")
             .text(d => d.name)
             .attr("x", d => getNodeSize(d.type) + 6)
             .attr("y", 4)
-            .style("font-family", "ui-monospace, SFMono-Regular, Menlo, monospace")
-            .style("font-size", d => d.type === NodeType.FOLDER ? "12px" : "10px")
             .style("font-weight", d => d.type === NodeType.FOLDER ? "600" : "400")
-            .style("fill", isDarkMode ? "#c9d1d9" : "#24292f")
             .style("pointer-events", "none")
             .style("paint-order", "stroke")
-            .style("stroke", isDarkMode ? "#0d1117" : "#ffffff")
             .style("stroke-width", "3px")
             .style("stroke-linecap", "butt")
             .style("stroke-linejoin", "miter");
@@ -190,37 +316,68 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
 
         const newNodes = nodeEnter.merge(nodeSelection as any);
 
-        // Update visuals
+        // Update visuals based on Theme
         newNodes.select("circle")
-            .attr("fill", d => getNodeColor(d.type))
-            .attr("stroke", d => d.isExpanded ? "#0969da" : (isDarkMode ? "#0d1117" : "#ffffff"))
+            .attr("fill", d => {
+                if (theme === 'pencil') {
+                    switch (d.type) {
+                        case NodeType.FOLDER: return "url(#pattern-folder)";
+                        case NodeType.FILE: return "url(#pattern-file)";
+                        case NodeType.FUNCTION: return "url(#pattern-function)";
+                        case NodeType.CLASS: return "url(#pattern-class)";
+                        case NodeType.COMPONENT: return "url(#pattern-component)";
+                        default: return "#ffffff";
+                    }
+                }
+                return getNodeColor(d.type);
+            })
+            .attr("stroke", d => {
+                if (theme === 'pencil') return isDarkMode ? "#ffffff" : "#000000";
+                return d.isExpanded ? "#0969da" : (isDarkMode ? "#0d1117" : "#ffffff");
+            })
             .attr("stroke-width", d => d.isExpanded ? 2 : 1.5)
+            .attr("stroke-dasharray", "none")
+            .attr("filter", (theme === 'crayon' || theme === 'pencil') ? "url(#sketchy-border-repo)" : (theme === 'modern' ? "url(#glow-repo)" : null))
             .on("mouseenter", function (event, d) {
                 d3.select(this)
                     .transition().duration(200)
                     .attr("r", getNodeSize(d.type) * 1.25)
-                    .attr("stroke", "#0969da")
+                    .attr("stroke", theme === 'pencil' ? (isDarkMode ? "#ffffff" : "#000000") : "#0969da")
                     .attr("stroke-width", 2);
             })
             .on("mouseleave", function (event, d) {
                 d3.select(this)
                     .transition().duration(200)
                     .attr("r", getNodeSize(d.type))
-                    .attr("stroke", d.isExpanded ? "#0969da" : (isDarkMode ? "#0d1117" : "#ffffff"))
+                    .attr("stroke", d => {
+                        if (theme === 'pencil') return isDarkMode ? "#ffffff" : "#000000";
+                        return d.isExpanded ? "#0969da" : (isDarkMode ? "#0d1117" : "#ffffff");
+                    })
                     .attr("stroke-width", d.isExpanded ? 2 : 1.5);
             })
             .on("click", (event, d) => handleNodeClick(event, d));
 
         newNodes.select("text")
-            .style("fill", isDarkMode ? "#c9d1d9" : "#24292f")
-            .style("stroke", isDarkMode ? "#0d1117" : "#ffffff");
+            .style("fill", theme === 'pencil' ? (isDarkMode ? "#ffffff" : "#000000") : (isDarkMode ? "#c9d1d9" : "#24292f"))
+            // Improved Readability for Pencil Theme
+            .style("paint-order", "stroke")
+            .style("stroke", theme === 'pencil' ? (isDarkMode ? "#0d1117" : "#ffffff") : (isDarkMode ? "#0d1117" : "#ffffff"))
+            .style("stroke-width", theme === 'pencil' ? "4px" : "3px")
+            .style("stroke-linecap", "round")
+            .style("stroke-linejoin", "round")
+            .style("font-family", (theme === 'crayon' || theme === 'pencil') ? '"Patrick Hand", cursive' : '"JetBrains Mono", monospace')
+            .style("font-weight", theme === 'pencil' ? "900" : "normal")
+            .style("font-size", d => {
+                const baseSize = d.type === NodeType.FOLDER ? 12 : 10;
+                return (theme === 'crayon' || theme === 'pencil') ? `${baseSize + 2}px` : `${baseSize}px`;
+            });
 
         newNodes.select(".indicator")
             .attr("r", d => getNodeSize(d.type) + 4)
             .attr("fill", "none")
-            .attr("stroke", "#0969da")
+            .attr("stroke", theme === 'pencil' ? (isDarkMode ? "#ffffff" : "#000000") : "#0969da")
             .attr("stroke-width", 1)
-            .attr("stroke-dasharray", "2,2")
+            .attr("stroke-dasharray", (theme === 'crayon' || theme === 'pencil') ? "4,2" : "2,2")
             .style("opacity", d => {
                 const hasKids = (d.data.children && d.data.children.length > 0);
                 const isAnalyzable = (d.type === NodeType.FILE && !d.data.analyzed);
@@ -254,7 +411,7 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
             d.fy = null;
         }
 
-    }, [nodes, links, isDarkMode]);
+    }, [nodes, links, isDarkMode, theme]); // Added theme dependency
 
     // --- 4. Auto-Focus Effect ---
     useEffect(() => {
@@ -419,6 +576,7 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
     };
 
     const getNodeColor = (type: NodeType) => {
+        if (theme === 'pencil') return "#ffffff";
         switch (type) {
             case NodeType.FOLDER: return "#54aeff"; // GitHub Blue
             case NodeType.FILE: return "#8b949e"; // Gray
@@ -442,14 +600,34 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
 
     return (
         <div ref={containerRef} className={`relative w-full h-full overflow-hidden ${isDarkMode ? 'bg-[#0d1117]' : 'bg-[#ffffff]'}`}>
-            {/* Dot Grid Background */}
-            <div className={`absolute inset-0 [background-size:20px_20px] pointer-events-none ${isDarkMode ? 'bg-[radial-gradient(#30363d_1px,transparent_1px)]' : 'bg-[radial-gradient(#e1e4e8_1px,transparent_1px)]'}`}></div>
+            {/* Background */}
+            {(theme === 'crayon' || theme === 'pencil') ? (
+                <div className="absolute inset-0 pointer-events-none opacity-40"
+                    style={{
+                        backgroundImage: theme === 'pencil'
+                            ? (isDarkMode
+                                ? 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.1\' fill=\'%23ffffff\'/%3E%3C/svg%3E")'
+                                : 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.05\'/%3E%3C/svg%3E")')
+                            : 'radial-gradient(#888 1px, transparent 1px)',
+                        backgroundSize: theme === 'pencil' ? 'auto' : '20px 20px',
+                        backgroundColor: theme === 'pencil' ? (isDarkMode ? '#0d1117' : '#ffffff') : '#fdfbf7'
+                    }}
+                ></div>
+            ) : (
+                <div className={`absolute inset-0 [background-size:20px_20px] pointer-events-none ${isDarkMode ? 'bg-[radial-gradient(#30363d_1px,transparent_1px)]' : 'bg-[radial-gradient(#e1e4e8_1px,transparent_1px)]'}`}></div>
+            )}
 
             {analyzingNodeId && (
                 <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none">
-                    <div className={`px-4 py-2 rounded-full border shadow-md flex items-center gap-3 ${isDarkMode ? 'bg-[#161b22] border-[#30363d]' : 'bg-white border-[#d0d7de]'}`}>
-                        <div className="w-2 h-2 bg-[#0969da] rounded-full animate-ping" />
-                        <span className={`text-xs font-semibold font-sans ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>Analyzing Structure...</span>
+                    <div className={`px-4 py-2 rounded-full border shadow-md flex items-center gap-3 
+                    ${theme === 'pencil' ? (isDarkMode ? 'bg-[#161b22] border-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.5)]' : 'bg-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]') :
+                            (isDarkMode ? 'bg-[#161b22] border-[#30363d]' : 'bg-white border-[#d0d7de]')}`}>
+                        <div className={`w-2 h-2 rounded-full animate-ping ${theme === 'pencil' ? (isDarkMode ? 'bg-white' : 'bg-black') : 'bg-[#0969da]'}`} />
+                        <span className={`text-xs font-semibold 
+                        ${(theme === 'crayon' || theme === 'pencil') ? 'font-[\'Patrick_Hand\']' : 'font-sans'} 
+                        ${theme === 'pencil' ? (isDarkMode ? 'text-white' : 'text-black') : (isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]')}`}>
+                            Analyzing Structure...
+                        </span>
                     </div>
                 </div>
             )}
@@ -458,13 +636,47 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
 
             {/* Legend */}
             <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 pointer-events-none z-50">
-                <div className={`p-3 rounded-md border shadow-sm flex flex-col gap-2 backdrop-blur-sm ${isDarkMode ? 'bg-[#161b22]/90 border-[#30363d]' : 'bg-white/90 border-[#d0d7de]'}`}>
-                    <div className={`text-[10px] uppercase tracking-wider mb-1 font-bold ${isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]'}`}>Legend</div>
-                    <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#54aeff]"></span><span className={`text-xs ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>Folder</span></div>
-                    <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#8b949e]"></span><span className={`text-xs ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>File</span></div>
-                    <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#d2a8ff]"></span><span className={`text-xs ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>Function</span></div>
-                    <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#ffa657]"></span><span className={`text-xs ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>Class</span></div>
-                    <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#7ee787]"></span><span className={`text-xs ${isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]'}`}>Component</span></div>
+                <div className={`p-3 rounded-md border shadow-sm flex flex-col gap-2 backdrop-blur-sm 
+                ${theme === 'pencil' ? (isDarkMode ? 'bg-[#161b22]/90 border-white border-2 shadow-[2px_2px_0px_0px_rgba(255,255,255,0.5)]' : 'bg-white/90 border-black border-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]') :
+                        (theme === 'crayon' ? 'bg-[#fdfbf7]/90 border-black border-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' :
+                            (isDarkMode ? 'bg-[#161b22]/90 border-[#30363d]' : 'bg-white/90 border-[#d0d7de]'))}`}>
+
+                    <div className={`text-[10px] uppercase tracking-wider mb-1 font-bold 
+                    ${(theme === 'crayon' || theme === 'pencil') ? 'font-[\'Patrick_Hand\'] text-base' : ''} 
+                    ${theme === 'pencil' ? (isDarkMode ? 'text-white' : 'text-black') : (isDarkMode ? 'text-[#8b949e]' : 'text-[#656d76]')}`}>
+                        Legend
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-full border border-black/20 
+                        ${theme === 'pencil' ? (isDarkMode ? 'bg-[#0d1117] border-white' : 'bg-white border-black') : 'bg-[#54aeff]'}`}
+                            style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-folder)' : 'none' }}></span>
+                        <span className={`text-xs ${(theme === 'crayon' || theme === 'pencil') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? (isDarkMode ? 'text-white' : 'text-black') : (isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]')}`}>Folder</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-full border border-black/20 
+                        ${theme === 'pencil' ? (isDarkMode ? 'bg-[#0d1117] border-white' : 'bg-white border-black') : 'bg-[#8b949e]'}`}
+                            style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-file)' : 'none' }}></span>
+                        <span className={`text-xs ${(theme === 'crayon' || theme === 'pencil') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? (isDarkMode ? 'text-white' : 'text-black') : (isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]')}`}>File</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-full border border-black/20 
+                        ${theme === 'pencil' ? (isDarkMode ? 'bg-[#0d1117] border-white' : 'bg-white border-black') : 'bg-[#d2a8ff]'}`}
+                            style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-function)' : 'none' }}></span>
+                        <span className={`text-xs ${(theme === 'crayon' || theme === 'pencil') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? (isDarkMode ? 'text-white' : 'text-black') : (isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]')}`}>Function</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-full border border-black/20 
+                        ${theme === 'pencil' ? (isDarkMode ? 'bg-[#0d1117] border-white' : 'bg-white border-black') : 'bg-[#ffa657]'}`}
+                            style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-class)' : 'none' }}></span>
+                        <span className={`text-xs ${(theme === 'crayon' || theme === 'pencil') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? (isDarkMode ? 'text-white' : 'text-black') : (isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]')}`}>Class</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-full border border-black/20 
+                        ${theme === 'pencil' ? (isDarkMode ? 'bg-[#0d1117] border-white' : 'bg-white border-black') : 'bg-[#7ee787]'}`}
+                            style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-component)' : 'none' }}></span>
+                        <span className={`text-xs ${(theme === 'crayon' || theme === 'pencil') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? (isDarkMode ? 'text-white' : 'text-black') : (isDarkMode ? 'text-[#c9d1d9]' : 'text-[#1f2328]')}`}>Component</span>
+                    </div>
                 </div>
             </div>
         </div>

@@ -59,3 +59,60 @@ export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
   target: string | GraphNode;
   value?: number; // Strength/Distance modifier
 }
+
+export interface GithubRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  owner: {
+    login: string;
+    avatar_url?: string;
+  };
+  html_url: string;
+  description: string | null;
+  fork: boolean;
+  url: string;
+  created_at: string;
+  updated_at: string;
+  pushed_at: string;
+  homepage: string | null;
+  size: number;
+  stargazers_count: number;
+  watchers_count: number;
+  language: string | null;
+  forks_count: number;
+  open_issues_count: number;
+  master_branch?: string;
+  default_branch: string;
+  score?: number;
+  // Visualization props
+  r?: number;
+  color?: string;
+  x?: number;
+  y?: number;
+  fx?: number | null;
+  fy?: number | null;
+}
+
+export interface UniverseNode extends d3.SimulationNodeDatum {
+  id: string;
+  name: string;
+  type: 'USER' | 'LANGUAGE' | 'REPO';
+  r?: number;
+  color?: string;
+  x?: number;
+  y?: number;
+  fx?: number | null;
+  fy?: number | null;
+  // Specific properties
+  language?: string;
+  full_name?: string;
+  stargazers_count?: number;
+  data?: GithubRepo;
+}
+
+export interface UniverseLink extends d3.SimulationLinkDatum<UniverseNode> {
+  source: string | UniverseNode;
+  target: string | UniverseNode;
+  value?: number;
+}
