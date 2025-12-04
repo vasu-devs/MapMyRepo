@@ -6,11 +6,48 @@ interface UserUniverseProps {
     repos: GithubRepo[];
     onRepoSelect: (repo: GithubRepo) => void;
     onNodeSelect?: (node: UniverseNode) => void;
-    isDarkMode: boolean;
-    theme: 'modern' | 'crayon' | 'pencil';
+    theme: 'modern' | 'crayon' | 'pencil' | 'comic';
 }
 
-// Standard GitHub Language Colors
+// Watercolor Palette for Comic Theme
+const watercolorColors: Record<string, string> = {
+    "TypeScript": "#89CFF0", // Baby Blue
+    "JavaScript": "#FFFACD", // Lemon Chiffon
+    "Python": "#98FB98", // Pale Green
+    "Java": "#DEB887", // Burlywood
+    "HTML": "#FFA07A", // Light Salmon
+    "CSS": "#E6E6FA", // Lavender
+    "C++": "#FFB6C1", // Light Pink
+    "C#": "#90EE90", // Light Green
+    "Go": "#E0FFFF", // Light Cyan
+    "Rust": "#FFDAB9", // Peach Puff
+    "PHP": "#B0C4DE", // Light Steel Blue
+    "Ruby": "#CD5C5C", // Indian Red (lighter)
+    "Swift": "#FA8072", // Salmon
+    "Kotlin": "#DDA0DD", // Plum
+    "Dart": "#AFEEEE", // Pale Turquoise
+    "Shell": "#F0E68C", // Khaki
+    "C": "#D3D3D3", // Light Gray
+    "Vue": "#98FB98", // Pale Green
+    "React": "#E0FFFF", // Light Cyan
+    "Svelte": "#FFA07A", // Light Salmon
+    "Dockerfile": "#B0C4DE", // Light Steel Blue
+    "Jupyter Notebook": "#FFDAB9", // Peach Puff
+    "Lua": "#ADD8E6", // Light Blue
+    "R": "#87CEFA", // Light Sky Blue
+    "Vim Script": "#90EE90", // Light Green
+    "Perl": "#87CEEB", // Sky Blue
+    "Scala": "#F08080", // Light Coral
+    "Haskell": "#D8BFD8", // Thistle
+    "Elixir": "#DDA0DD", // Plum
+    "Clojure": "#F08080", // Light Coral
+    "Makefile": "#8FBC8F", // Dark Sea Green (lighter)
+    "Assembly": "#DEB887", // Burlywood
+    "Objective-C": "#87CEFA", // Light Sky Blue
+    "Other": "#D3D3D3"  // Light Gray
+};
+
+// Standard GitHub Language Colors (Fallback/Modern)
 const githubColors: Record<string, string> = {
     "TypeScript": "#3178c6",
     "JavaScript": "#f1e05a",
@@ -48,7 +85,7 @@ const githubColors: Record<string, string> = {
     "Other": "#8b949e"
 };
 
-export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect, onNodeSelect, isDarkMode, theme }) => {
+export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect, onNodeSelect, theme }) => {
     const svgRef = useRef<SVGSVGElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -71,8 +108,8 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
             id: 'user-sun',
             name: repos[0]?.owner.login || 'User',
             type: 'USER',
-            r: (theme === 'crayon' || theme === 'pencil') ? 70 : 60,
-            color: theme === 'pencil' ? '#ffffff' : (theme === 'crayon' ? '#ffffff' : '#FFD700'),
+            r: (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? 70 : 60,
+            color: theme === 'pencil' ? '#ffffff' : (theme === 'comic' || theme === 'crayon' ? '#F4A460' : '#FFD700'), // Comic/Crayon: Sandy Brown for User
             fx: 0,
             fy: 0
         };
@@ -89,7 +126,8 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
         });
 
         languageGroups.forEach((groupRepos, language) => {
-            const langColor = theme === 'pencil' ? '#ffffff' : (githubColors[language] || githubColors['Other']);
+            // Crayon now uses GitHub colors, Comic uses watercolor
+            const langColor = theme === 'pencil' ? '#ffffff' : (theme === 'comic' ? (watercolorColors[language] || watercolorColors['Other']) : (githubColors[language] || githubColors['Other']));
             const isExpanded = expandedLanguages.has(language);
 
             // Language Node
@@ -152,7 +190,8 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
         // Define Filters & Patterns
         const defs = svg.append("defs");
 
-        if (theme === 'crayon' || theme === 'pencil') {
+        if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') {
+            // Sketchy Border Filter (for outlines)
             const borderFilter = defs.append("filter")
                 .attr("id", "sketchy-border")
                 .attr("height", "150%")
@@ -169,10 +208,43 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
             borderFilter.append("feDisplacementMap")
                 .attr("in", "SourceGraphic")
                 .attr("in2", "noise")
-                .attr("scale", "3");
+                .attr("scale", (theme === 'comic' || theme === 'crayon') ? "2" : "3");
+
+            // Grainy Texture Filter (for fills) - NEW for Comic & Crayon
+            if (theme === 'comic' || theme === 'crayon') {
+                const grainFilter = defs.append("filter")
+                    .attr("id", "grainy-texture")
+                    .attr("x", "0%")
+                    .attr("y", "0%")
+                    .attr("width", "100%")
+                    .attr("height", "100%");
+
+                grainFilter.append("feTurbulence")
+                    .attr("type", "fractalNoise")
+                    .attr("baseFrequency", "0.8")
+                    .attr("numOctaves", "3")
+                    .attr("stitchTiles", "stitch")
+                    .attr("result", "noise");
+
+                grainFilter.append("feColorMatrix")
+                    .attr("type", "matrix")
+                    .attr("values", "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.3 0") // Adjust opacity of noise
+                    .attr("in", "noise")
+                    .attr("result", "coloredNoise");
+
+                grainFilter.append("feComposite")
+                    .attr("operator", "in")
+                    .attr("in", "coloredNoise")
+                    .attr("in2", "SourceGraphic")
+                    .attr("result", "compositeNoise");
+
+                const feMerge = grainFilter.append("feMerge");
+                feMerge.append("feMergeNode").attr("in", "SourceGraphic");
+                feMerge.append("feMergeNode").attr("in", "compositeNoise");
+            }
 
             // --- PATTERNS FOR PENCIL THEME ---
-            const strokeColor = isDarkMode ? '#ffffff' : '#000000';
+            const strokeColor = '#000000';
 
             // 1. Diagonal Lines (for Languages)
             const patternLines = defs.append("pattern")
@@ -201,7 +273,7 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
             patternCross.append("rect")
                 .attr("width", 8)
                 .attr("height", 8)
-                .attr("fill", isDarkMode ? "#0d1117" : "#ffffff"); // Background for pattern
+                .attr("fill", "#ffffff"); // Background for pattern
 
             patternCross.append("path")
                 .attr("d", "M0 0L8 8M8 0L0 8")
@@ -284,12 +356,12 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
 
         // Links
         const link = g.append("g")
-            .attr("stroke", theme === 'pencil' ? (isDarkMode ? "#ffffff" : "#000000") : (theme === 'crayon' ? "#4a90e2" : "#999"))
-            .attr("stroke-width", (theme === 'crayon' || theme === 'pencil') ? 2 : 1)
-            .attr("stroke-opacity", (theme === 'crayon' || theme === 'pencil') ? 0.6 : 0.2)
+            .attr("stroke", theme === 'pencil' ? "#000000" : ((theme === 'comic' || theme === 'crayon') ? "#2F4F4F" : "#999")) // Dark Slate Gray for Comic/Crayon Links
+            .attr("stroke-width", (theme === 'comic' || theme === 'crayon') ? 4 : (theme === 'pencil' ? 2 : 1)) // Thicker for Comic/Crayon
+            .attr("stroke-opacity", (theme === 'comic' || theme === 'crayon') ? 0.8 : (theme === 'pencil' ? 0.6 : 0.2))
             .attr("stroke-linecap", "round")
             .attr("stroke-dasharray", "none")
-            .attr("filter", (theme === 'crayon' || theme === 'pencil') ? "url(#sketchy-border)" : null)
+            .attr("filter", (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? "url(#sketchy-border)" : null)
             .selectAll("line")
             .data(simulationLinks)
             .join("line");
@@ -321,17 +393,19 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
                 return d.color || '#ccc';
             })
             .attr("stroke", d => {
-                if (theme === 'pencil') return isDarkMode ? "#ffffff" : "#000000";
-                if (theme === 'crayon') return "#2c3e50";
-                return isDarkMode ? "#fff" : "#000";
+                if (theme === 'pencil') return "#000000";
+                if (theme === 'comic' || theme === 'crayon') return "#000000"; // Black outline for Comic/Crayon
+                return "#000";
             })
             .attr("stroke-width", d => {
-                if (theme === 'crayon' || theme === 'pencil') return d.type === 'USER' ? 3 : 2;
+                if (theme === 'comic' || theme === 'crayon') return 3; // Thinner outline for Comic/Crayon
+                if (theme === 'pencil') return d.type === 'USER' ? 3 : 2;
                 return d.type === 'REPO' ? 1 : 0;
             })
             .attr("stroke-dasharray", "none")
             .attr("filter", d => {
-                if (theme === 'crayon' || theme === 'pencil') return "url(#sketchy-border)";
+                if (theme === 'comic' || theme === 'crayon') return "url(#grainy-texture) url(#sketchy-border)"; // Apply both grain and sketch
+                if (theme === 'pencil') return "url(#sketchy-border)";
                 if (theme === 'modern' && (d.type === 'USER' || d.type === 'LANGUAGE')) return "url(#glow)";
                 return null;
             })
@@ -342,50 +416,50 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
             .append("circle")
             .attr("r", d => (d.r || 30) + 5)
             .attr("fill", "none")
-            .attr("stroke", theme === 'pencil' ? (isDarkMode ? "#ffffff" : "#000000") : (isDarkMode ? "#fff" : "#000"))
-            .attr("stroke-width", 1)
-            .attr("stroke-dasharray", "2,2")
+            .attr("stroke", theme === 'pencil' ? "#000000" : ((theme === 'comic' || theme === 'crayon') ? "#000000" : "#000"))
+            .attr("stroke-width", (theme === 'comic' || theme === 'crayon') ? 2 : 1)
+            .attr("stroke-dasharray", (theme === 'comic' || theme === 'crayon') ? "none" : "2,2") // Solid line for Comic/Crayon
             .attr("opacity", d => expandedLanguages.has(d.language || '') ? 0 : 0.5); // Hide when expanded
 
         // Labels
         node.append("text")
             .text(d => d.name)
             .attr("text-anchor", "middle")
-            .attr("dominant-baseline", (theme === 'crayon' || theme === 'pencil') ? "middle" : "auto")
+            .attr("dominant-baseline", (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? "middle" : "auto")
             .attr("dy", d => {
-                if (theme === 'crayon' || theme === 'pencil') return d.type === 'REPO' ? -((d.r || 5) + 10) : 0;
+                if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') return d.type === 'REPO' ? -((d.r || 5) + 10) : 0;
                 return 4;
             })
             .attr("x", d => {
-                if (theme === 'crayon' || theme === 'pencil') return 0;
+                if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') return 0;
                 return (d.r || 0) + 5;
             })
-            .style("font-family", (theme === 'crayon' || theme === 'pencil') ? "'Patrick Hand', cursive" : "inherit")
+            .style("font-family", (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? "'Patrick Hand', cursive" : "inherit")
             .style("font-size", d => {
-                if (theme === 'crayon' || theme === 'pencil') {
+                if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') {
                     if (d.type === 'USER') return "24px";
                     if (d.type === 'LANGUAGE') return "16px";
                     return "0px";
                 }
                 return d.type === 'USER' ? "16px" : d.type === 'LANGUAGE' ? "14px" : "10px";
             })
-            .style("font-weight", theme === 'pencil' ? "900" : "bold")
+            .style("font-weight", (theme === 'pencil' || theme === 'comic') ? "900" : "bold")
             .style("fill", d => {
-                if (theme === 'pencil') return isDarkMode ? "#ffffff" : "#000000";
-                if (theme === 'crayon') return d.type === 'USER' ? "#2c3e50" : "#ffffff";
-                return isDarkMode ? "#eee" : "#333";
+                if (theme === 'pencil') return "#000000";
+                if (theme === 'comic' || theme === 'crayon') return "#000000"; // Black text for Comic/Crayon
+                return "#333";
             })
-            // Improved Readability for Pencil Theme
+            // Improved Readability
             .style("paint-order", "stroke")
             .style("stroke", d => {
-                if (theme === 'pencil') return isDarkMode ? "#0d1117" : "#ffffff";
+                if (theme === 'pencil') return "#ffffff";
+                if (theme === 'comic' || theme === 'crayon') return "#ffffff"; // White stroke for Comic/Crayon text
                 return "none";
             })
-            .style("stroke-width", theme === 'pencil' ? "4px" : "0px")
+            .style("stroke-width", (theme === 'pencil' || theme === 'comic' || theme === 'crayon') ? "4px" : "0px")
             .style("stroke-linecap", "round")
             .style("stroke-linejoin", "round")
             .style("text-shadow", d => {
-                if (theme === 'crayon' && d.type === 'LANGUAGE') return "1px 1px 0 #000";
                 if (theme === 'modern') return "0 1px 4px rgba(0,0,0,0.8)";
                 return "none";
             })
@@ -402,13 +476,13 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
                 .transition().duration(200)
                 .style("opacity", 1)
                 .style("font-size", () => {
-                    if (theme === 'crayon' || theme === 'pencil') return d.type === 'REPO' ? "14px" : (d.type === 'USER' ? "28px" : "18px");
+                    if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') return d.type === 'REPO' ? "14px" : (d.type === 'USER' ? "28px" : "18px");
                     return "14px";
                 })
-                .style("fill", theme === 'pencil' ? (isDarkMode ? "#ffffff" : "#000000") : (theme === 'crayon' ? "#2c3e50" : (isDarkMode ? "#eee" : "#333")))
+                .style("fill", theme === 'pencil' ? "#000000" : ((theme === 'comic' || theme === 'crayon') ? "#000000" : "#333"))
                 .style("text-shadow", "none")
                 .attr("dy", () => {
-                    if (theme === 'crayon' || theme === 'pencil') return d.type === 'REPO' ? -((d.r || 5) + 15) : 0;
+                    if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') return d.type === 'REPO' ? -((d.r || 5) + 15) : 0;
                     return 4;
                 })
                 .style("z-index", 100);
@@ -424,21 +498,20 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
                     .transition().duration(200)
                     .style("opacity", d.type === 'REPO' ? 0 : 1)
                     .style("font-size", () => {
-                        if (theme === 'crayon' || theme === 'pencil') return d.type === 'USER' ? "24px" : d.type === 'LANGUAGE' ? "16px" : "0px";
+                        if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') return d.type === 'USER' ? "24px" : d.type === 'LANGUAGE' ? "16px" : "0px";
                         return d.type === 'USER' ? "16px" : d.type === 'LANGUAGE' ? "14px" : "10px";
                     })
                     .style("fill", d => {
-                        if (theme === 'pencil') return isDarkMode ? "#ffffff" : "#000000";
-                        if (theme === 'crayon') return d.type === 'USER' ? "#2c3e50" : "#ffffff";
-                        return isDarkMode ? "#eee" : "#333";
+                        if (theme === 'pencil') return "#000000";
+                        if (theme === 'comic' || theme === 'crayon') return "#000000";
+                        return "#333";
                     })
                     .style("text-shadow", d => {
-                        if (theme === 'crayon' && d.type === 'LANGUAGE') return "1px 1px 0 #000";
                         if (theme === 'modern') return "0 1px 4px rgba(0,0,0,0.8)";
                         return "none";
                     })
                     .attr("dy", () => {
-                        if (theme === 'crayon' || theme === 'pencil') return d.type === 'REPO' ? -((d.r || 5) + 10) : 0;
+                        if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') return d.type === 'REPO' ? -((d.r || 5) + 10) : 0;
                         return 4;
                     });
             });
@@ -495,66 +568,55 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
             simulation.stop();
         };
 
-    }, [repos, theme, expandedLanguages, isDarkMode]);
+    }, [repos, theme, expandedLanguages]);
 
     // Background Styles
-    const backgroundStyle = (theme === 'crayon' || theme === 'pencil') ? {
-        backgroundColor: theme === 'pencil' ? (isDarkMode ? '#0d1117' : '#ffffff') : '#fdfdf6',
+    const backgroundStyle = (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? {
+        backgroundColor: theme === 'pencil' ? '#ffffff' : (theme === 'comic' ? '#f0e6d2' : '#fdfdf6'), // Comic: Beige
         backgroundImage: theme === 'pencil'
-            ? (isDarkMode
-                ? 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.1\' fill=\'%23ffffff\'/%3E%3C/svg%3E")'
-                : 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.05\'/%3E%3C/svg%3E")')
-            : 'radial-gradient(#d0d0d0 1px, transparent 1px)',
-        backgroundSize: theme === 'pencil' ? 'auto' : '20px 20px'
+            ? 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.05\'/%3E%3C/svg%3E")'
+            : ((theme === 'comic' || theme === 'crayon')
+                ? 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.6\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.15\' fill=\'%238b7355\'/%3E%3C/svg%3E")' // Beige noise
+                : 'radial-gradient(#d0d0d0 1px, transparent 1px)'),
+        backgroundSize: (theme === 'pencil' || theme === 'comic' || theme === 'crayon') ? 'auto' : '20px 20px'
     } : {
-        backgroundColor: isDarkMode ? '#0d1117' : '#ffffff',
-        backgroundImage: isDarkMode
-            ? 'radial-gradient(circle at center, #1a1a2e 0%, #000000 100%)'
-            : 'none'
+        backgroundColor: '#ffffff',
+        backgroundImage: 'none'
     };
 
     return (
         <div ref={containerRef} className="w-full h-full relative overflow-hidden"
             style={backgroundStyle}
         >
-            {/* Modern Stars Background */}
-            {
-                theme === 'modern' && isDarkMode && (
-                    <div className="absolute inset-0 z-0 pointer-events-none">
-                        {[...Array(50)].map((_, i) => (
-                            <div key={i}
-                                className="absolute rounded-full bg-white animate-pulse"
-                                style={{
-                                    top: `${Math.random() * 100}%`,
-                                    left: `${Math.random() * 100}%`,
-                                    width: `${Math.random() * 2 + 1}px`,
-                                    height: `${Math.random() * 2 + 1}px`,
-                                    opacity: Math.random() * 0.7 + 0.3,
-                                    animationDuration: `${Math.random() * 3 + 2}s`
-                                }}
-                            />
-                        ))}
-                    </div>
-                )
-            }
-
             <svg ref={svgRef} className="w-full h-full relative z-10" />
 
             {/* Legend */}
             {
-                (theme === 'crayon' || theme === 'pencil') ? (
-                    <div className={`absolute bottom-4 left-4 z-20 p-4 rounded-lg border-2 ${theme === 'pencil' ? (isDarkMode ? 'border-white bg-[#0d1117] text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.5)]' : 'border-black bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]') : 'border-[#2c3e50] bg-[#fdfdf6] text-[#2c3e50] shadow-lg'} font-['Patrick_Hand'] transform rotate-1`}>
-                        <h3 className={`text-lg font-bold mb-2 border-b ${theme === 'pencil' ? (isDarkMode ? 'border-white' : 'border-black') : 'border-[#2c3e50]'} pb-1`}>LEGEND</h3>
+                (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? (
+                    <div className={`absolute bottom-4 left-4 z-20 p-4 rounded-lg border-2 
+                        ${theme === 'pencil' ? 'border-black bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' :
+                            ((theme === 'comic' || theme === 'crayon') ? 'border-black bg-[#f0e6d2] text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'border-[#2c3e50] bg-[#fdfdf6] text-[#2c3e50] shadow-lg')} 
+                        font-['Patrick_Hand'] transform rotate-1`}>
+                        <h3 className={`text-lg font-bold mb-2 border-b ${theme === 'pencil' ? 'border-black' : ((theme === 'comic' || theme === 'crayon') ? 'border-black' : 'border-[#2c3e50]')} pb-1`}>LEGEND</h3>
                         <div className="flex items-center gap-2 mb-1">
-                            <div className={`w-4 h-4 rounded-full border-2 ${theme === 'pencil' ? (isDarkMode ? 'border-white bg-[#0d1117]' : 'border-black bg-white') : 'border-[#2c3e50] bg-white'}`} style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-dots)' : 'none' }}></div>
+                            <div className={`w-4 h-4 rounded-full border-2 
+                                ${theme === 'pencil' ? 'border-black bg-white' :
+                                    ((theme === 'comic' || theme === 'crayon') ? 'border-black bg-[#F4A460]' : 'border-[#2c3e50] bg-white')}`}
+                                style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-dots)' : 'none' }}></div>
                             <span>User</span>
                         </div>
                         <div className="flex items-center gap-2 mb-1">
-                            <div className={`w-4 h-4 rounded-full border-2 ${theme === 'pencil' ? (isDarkMode ? 'border-white bg-[#0d1117]' : 'border-black bg-white') : 'border-[#2c3e50] bg-[#3178c6]'}`} style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-lines)' : 'none' }}></div>
+                            <div className={`w-4 h-4 rounded-full border-2 
+                                ${theme === 'pencil' ? 'border-black bg-white' :
+                                    ((theme === 'comic' || theme === 'crayon') ? 'border-black bg-[#89CFF0]' : 'border-[#2c3e50] bg-[#3178c6]')}`}
+                                style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-lines)' : 'none' }}></div>
                             <span>Language (Click to Expand)</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <div className={`w-3 h-3 rounded-full border ${theme === 'pencil' ? (isDarkMode ? 'border-white bg-[#0d1117]' : 'border-black bg-white') : 'border-[#2c3e50] bg-[#3178c6]'}`} style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-cross)' : 'none' }}></div>
+                            <div className={`w-3 h-3 rounded-full border 
+                                ${theme === 'pencil' ? 'border-black bg-white' :
+                                    ((theme === 'comic' || theme === 'crayon') ? 'border-black bg-[#89CFF0]' : 'border-[#2c3e50] bg-[#3178c6]')}`}
+                                style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-cross)' : 'none' }}></div>
                             <span>Repo</span>
                         </div>
                     </div>
