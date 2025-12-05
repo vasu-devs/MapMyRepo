@@ -234,9 +234,42 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, th
         if (!repoUrl.trim()) return;
         setLoading(true);
         try {
+            // Extract owner and repo from URL
+            // Format: github.com/owner/repo or https://github.com/owner/repo
+            let url = repoUrl.trim();
+            if (url.startsWith('https://')) url = url.replace('https://', '');
+            if (url.startsWith('http://')) url = url.replace('http://', '');
+            if (url.startsWith('www.')) url = url.replace('www.', '');
+
+            const parts = url.split('/');
+            // Filter out empty strings from split
+            const cleanParts = parts.filter(p => p.length > 0);
+
+            // Expected parts: ["github.com", "owner", "repo"] or just ["owner", "repo"] if standard didn't match exactly
+            // Let's assume standardized github.com/owner/repo
+
+            let owner = '';
+            let repoName = '';
+
+            if (cleanParts[0] === 'github.com' && cleanParts.length >= 3) {
+                owner = cleanParts[1];
+                repoName = cleanParts[2];
+            } else if (cleanParts.length === 2 && !cleanParts[0].includes('.')) {
+                // assume "owner/repo" input
+                owner = cleanParts[0];
+                repoName = cleanParts[1];
+            }
+
             const tree = await fetchGithubRepo(repoUrl.trim(), import.meta.env.VITE_GITHUB_TOKEN);
             if (tree) {
                 onUploadComplete(tree);
+                // Update URL if we successfully parsed owner/repo
+                if (owner && repoName) {
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('user', owner);
+                    newUrl.searchParams.set('repo', repoName);
+                    window.history.pushState({}, '', newUrl);
+                }
             }
         } catch (e: any) {
             console.error('GitHub load failed', e);

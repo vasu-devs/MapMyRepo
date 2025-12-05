@@ -7,6 +7,8 @@ interface UserUniverseProps {
     onRepoSelect: (repo: GithubRepo) => void;
     onNodeSelect?: (node: UniverseNode) => void;
     theme: 'modern' | 'crayon' | 'pencil' | 'comic';
+    focusedNodeId?: string | null;
+    onTransitionComplete?: () => void;
 }
 
 // Watercolor Palette for Comic Theme
@@ -85,7 +87,7 @@ const githubColors: Record<string, string> = {
     "Other": "#8b949e"
 };
 
-export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect, onNodeSelect, theme }) => {
+export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect, onNodeSelect, theme, focusedNodeId: propFocusedNodeId, onTransitionComplete }) => {
     const svgRef = useRef<SVGSVGElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -347,11 +349,11 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
                 .strength(0.4)
             )
             .force("charge", d3.forceManyBody().strength(d => {
-                if (d.type === 'USER') return -1500;
-                if (d.type === 'LANGUAGE') return -400;
-                return -80;
+                if (d.type === 'USER') return -2000;
+                if (d.type === 'LANGUAGE') return -800;
+                return -300;
             }))
-            .force("collide", d3.forceCollide().radius(d => (d.r || 5) + 15).iterations(2))
+            .force("collide", d3.forceCollide().radius(d => (d.r || 5) + 30).iterations(4))
             .force("center", d3.forceCenter(0, 0).strength(0.05));
 
         // Links
@@ -439,7 +441,7 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
                 if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') {
                     if (d.type === 'USER') return "24px";
                     if (d.type === 'LANGUAGE') return "16px";
-                    return "0px";
+                    return "14px";
                 }
                 return d.type === 'USER' ? "16px" : d.type === 'LANGUAGE' ? "14px" : "10px";
             })
@@ -464,7 +466,7 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
                 return "none";
             })
             .style("pointer-events", "none")
-            .style("opacity", d => d.type === 'REPO' ? 0 : 1);
+            .style("opacity", 1);
 
         // Hover Effects
         node.on("mouseover", (event, d) => {
@@ -496,9 +498,9 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
 
                 d3.select(event.currentTarget).select("text")
                     .transition().duration(200)
-                    .style("opacity", d.type === 'REPO' ? 0 : 1)
+                    .style("opacity", 1)
                     .style("font-size", () => {
-                        if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') return d.type === 'USER' ? "24px" : d.type === 'LANGUAGE' ? "16px" : "0px";
+                        if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') return d.type === 'USER' ? "24px" : d.type === 'LANGUAGE' ? "16px" : "14px";
                         return d.type === 'USER' ? "16px" : d.type === 'LANGUAGE' ? "14px" : "10px";
                     })
                     .style("fill", d => {
@@ -569,6 +571,36 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
         };
 
     }, [repos, theme, expandedLanguages]);
+
+    // --- Auto-Focus / Transition Effect ---
+    useEffect(() => {
+        const targetId = propFocusedNodeId || focusNodeId;
+
+        if (targetId && svgRef.current && zoomBehaviorRef.current) {
+            const targetNode = nodes.find(n => n.id === targetId);
+            if (targetNode && targetNode.x !== undefined && targetNode.y !== undefined && containerRef.current) {
+                const svg = d3.select(svgRef.current);
+                const width = containerRef.current.clientWidth;
+                const height = containerRef.current.clientHeight;
+                const scale = 4; // Zoom in closer
+
+                const x = -targetNode.x * scale + width / 2;
+                const y = -targetNode.y * scale + height / 2;
+
+                svg.transition()
+                    .duration(700) // Faster zoom
+                    .ease(d3.easeCubicInOut)
+                    .call(
+                        zoomBehaviorRef.current.transform as any,
+                        d3.zoomIdentity.translate(x, y).scale(scale)
+                    )
+                    .on("end", () => {
+                        setFocusNodeId(null);
+                        if (onTransitionComplete) onTransitionComplete();
+                    });
+            }
+        }
+    }, [focusNodeId, propFocusedNodeId, nodes]);
 
     // Background Styles
     const backgroundStyle = (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? {

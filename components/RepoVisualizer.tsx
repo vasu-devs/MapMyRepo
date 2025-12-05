@@ -37,7 +37,39 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
     const [analyzingNodeId, setAnalyzingNodeId] = useState<string | null>(null);
     const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
 
-    // --- 1. Initialization ---
+    // --- 1. Data Initialization (Runs only when data changes) ---
+    useEffect(() => {
+        const rootNode: GraphNode = {
+            id: data.path,
+            name: data.name,
+            type: data.type,
+            data: data,
+            x: 0,
+            y: 0,
+            fx: 0,
+            fy: 0,
+
+
+
+
+
+
+
+
+
+
+
+
+
+            isExpanded: false,
+            depth: 0
+        };
+        setNodes([rootNode]);
+        setLinks([]);
+        setFocusNodeId(null);
+    }, [data]);
+
+    // --- 2. SVG & Theme Initialization (Runs on mount and theme change) ---
     useEffect(() => {
         if (!svgRef.current || !containerRef.current) return;
 
@@ -234,24 +266,24 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
             .force("x", d3.forceX().strength(0.05))
             .force("y", d3.forceY().strength(0.05));
 
-        const rootNode: GraphNode = {
-            id: data.path,
-            name: data.name,
-            type: data.type,
-            data: data,
-            x: 0,
-            y: 0,
-            fx: 0,
-            fy: 0,
-            isExpanded: false,
-            depth: 0
-        };
-        setNodes([rootNode]);
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         return () => {
             simulationRef.current?.stop();
         };
-    }, [data, theme]); // Re-run if data or theme changes
+    }, [theme]); // Only re-run if theme changes (or mount)
 
     // --- 3. Data & Theme Update Effect ---
     useEffect(() => {
@@ -563,6 +595,7 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
                 // Increased random jitter to avoid initial stacking/overlap
                 x: parentNode.x! + (Math.random() - 0.5) * 60,
                 y: parentNode.y! + (Math.random() - 0.5) * 60,
+
                 isExpanded: false,
                 depth: (parentNode.depth || 0) + 1
             }));

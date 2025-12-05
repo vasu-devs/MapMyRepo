@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChatMessage, FileSystemNode, NodeType, UniverseNode } from '../types';
-import { askQuestion, analyzeFolder } from '../services/geminiService';
+import { ChatMessage, FileSystemNode, NodeType, UniverseNode, GithubRepo } from '../types';
+import { askQuestion, analyzeFolder, askUniverseQuestion } from '../services/geminiService';
 import { marked } from 'marked';
 
 interface SidebarProps {
     node: FileSystemNode | null;
     universeNode?: UniverseNode | null;
     rootNode: FileSystemNode | null;
+    universeData?: GithubRepo[];
     theme?: 'modern' | 'crayon' | 'pencil' | 'comic';
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ node, universeNode, rootNode, theme = 'modern' }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ node, universeNode, rootNode, universeData = [], theme = 'modern' }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
-    const [activeTab, setActiveTab] = useState<'DETAILS' | 'CHAT'>('DETAILS');
+    const [activeTab, setActiveTab] = useState<'DETAILS' | 'CHAT' | 'NODES'>('DETAILS');
 
     // Chat State
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -74,14 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, universeNode, rootNode, 
         if (node) {
             answer = await askQuestion(node, rootNode, userMsg.text);
         } else if (universeNode) {
-            // Simple mock response for Universe nodes for now, or use Gemini if we had a service for it
-            if (universeNode.type === 'REPO') {
-                answer = `I see you're interested in **${universeNode.name}**. It's a ${universeNode.language} repository with ${universeNode.stargazers_count} stars. I can help you understand its structure if you visualize it!`;
-            } else if (universeNode.type === 'LANGUAGE') {
-                answer = `**${universeNode.name}** is a popular programming language. You have several repositories using it.`;
-            } else if (universeNode.type === 'USER') {
-                answer = `This is the universe of **${universeNode.name}**. It contains all their public repositories grouped by language.`;
-            }
+            answer = await askUniverseQuestion(universeNode, universeData, userMsg.text);
         }
 
         const aiMsg: ChatMessage = {
@@ -209,6 +203,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, universeNode, rootNode, 
                                 >
                                     Details
                                 </button>
+
                                 <button
                                     onClick={() => setActiveTab('CHAT')}
                                     className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all duration-300 ${activeTab === 'CHAT'
@@ -288,28 +283,73 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, universeNode, rootNode, 
                                                     </button>
                                                 </div>
                                             )}
-                                            {universeNode.type === 'LANGUAGE' && (
-                                                <div className="text-center py-8">
-                                                    <div className="text-4xl mb-4">🌐</div>
-                                                    <p className={`text-sm ${isComic ? 'text-black' : 'text-[#1f2328]'}`}>
-                                                        This cluster represents all your repositories written in <strong>{universeNode.name}</strong>.
-                                                        <br /><br />
-                                                        Click on the planet to expand/collapse the repositories.
-                                                    </p>
+
+                                            {universeNode && universeNode.type === 'LANGUAGE' && (
+                                                <div className="space-y-4">
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className={`p-3 rounded-lg border ${isComic ? 'border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'border-black/5 bg-black/5'}`}>
+                                                            <div className="text-xs opacity-70">Repositories</div>
+                                                            <div className="text-lg font-bold">{universeData.filter(r => (r.language || 'Other') === universeNode.name).length}</div>
+                                                        </div>
+                                                        <div className={`p-3 rounded-lg border ${isComic ? 'border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'border-black/5 bg-black/5'}`}>
+                                                            <div className="text-xs opacity-70">Total Stars</div>
+                                                            <div className="text-lg font-bold">{universeData.filter(r => (r.language || 'Other') === universeNode.name).reduce((sum, r) => sum + r.stargazers_count, 0)}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="pt-4">
+                                                        <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 opacity-70 ${isComic ? 'text-black' : 'text-[#1f2328]'}`}>
+                                                            Repositories
+                                                        </h3>
+                                                        <div className={`border rounded-xl divide-y overflow-hidden ${isComic ? 'border-black divide-black bg-white' : 'border-black/5 divide-black/5'}`}>
+                                                            {universeData.filter(r => (r.language || 'Other') === universeNode.name).map((repo, idx) => (
+                                                                <div key={idx} className="flex items-center gap-3 p-3 px-4">
+                                                                    <span className="text-xs opacity-70">📦</span>
+                                                                    <span className={`text-xs font-medium truncate ${isComic ? 'text-black' : 'text-[#1f2328]'}`}>{repo.name}</span>
+                                                                    <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium ${isComic ? 'text-black bg-[#f0e6d2] border border-black' : 'text-[#656d76] bg-[#eff1f3]'}`}>
+                                                                        ⭐ {repo.stargazers_count}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             )}
-                                            {universeNode.type === 'USER' && (
-                                                <div className="text-center py-8">
-                                                    <div className="text-4xl mb-4">👤</div>
-                                                    <p className={`text-sm ${isComic ? 'text-black' : 'text-[#1f2328]'}`}>
-                                                        This is your GitHub Universe.
-                                                        <br /><br />
-                                                        Planets represent languages, and satellites are your repositories.
-                                                    </p>
+                                            {universeNode && universeNode.type === 'USER' && (
+                                                <div className="space-y-4">
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className={`p-3 rounded-lg border ${isComic ? 'border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'border-black/5 bg-black/5'}`}>
+                                                            <div className="text-xs opacity-70">Total Repos</div>
+                                                            <div className="text-lg font-bold">{universeData.length}</div>
+                                                        </div>
+                                                        <div className={`p-3 rounded-lg border ${isComic ? 'border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'border-black/5 bg-black/5'}`}>
+                                                            <div className="text-xs opacity-70">Total Stars</div>
+                                                            <div className="text-lg font-bold">{universeData.reduce((sum, r) => sum + r.stargazers_count, 0)}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="pt-4">
+                                                        <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 opacity-70 ${isComic ? 'text-black' : 'text-[#1f2328]'}`}>
+                                                            Languages & Groups
+                                                        </h3>
+                                                        <div className={`border rounded-xl divide-y overflow-hidden ${isComic ? 'border-black divide-black bg-white' : 'border-black/5 divide-black/5'}`}>
+                                                            {[...new Set(universeData.map(r => r.language || 'Other'))].sort().map((lang, idx) => (
+                                                                <div key={idx} className="flex items-center gap-3 p-3 px-4">
+                                                                    <span className="text-xs opacity-70">🌐</span>
+                                                                    <span className={`text-xs font-medium truncate ${isComic ? 'text-black' : 'text-[#1f2328]'}`}>{lang}</span>
+                                                                    <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium ${isComic ? 'text-black bg-[#f0e6d2] border border-black' : 'text-[#656d76] bg-[#eff1f3]'}`}>
+                                                                        {universeData.filter(r => (r.language || 'Other') === lang).length} repos
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
                                     )}
+
+
 
                                     <hr className={`border-t ${isComic ? 'border-black' : 'border-black/5'}`} />
 

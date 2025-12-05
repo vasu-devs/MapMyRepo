@@ -6,7 +6,7 @@ import { UserUniverse } from './components/UserUniverse';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { fetchUserRepos, fetchRepoTree } from './services/githubService';
 import { FileSystemNode, GithubRepo, UniverseNode } from './types';
-import { Github } from 'lucide-react';
+import { Github, Share2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [data, setData] = useState<FileSystemNode | null>(null);
@@ -22,6 +22,11 @@ const App: React.FC = () => {
   const [isLoadingUniverse, setIsLoadingUniverse] = useState(false);
   const [universeError, setUniverseError] = useState<string | null>(null);
   const [selectedUniverseNode, setSelectedUniverseNode] = useState<UniverseNode | null>(null);
+  const [isEmbed, setIsEmbed] = useState(false);
+
+  // Transition State
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitionTargetId, setTransitionTargetId] = useState<string | null>(null);
 
   const isPencil = theme === 'pencil';
   const isComic = theme === 'comic';
@@ -65,14 +70,15 @@ const App: React.FC = () => {
     }
   };
 
-  const handleScanUniverse = async () => {
-    if (!profileUrl.trim()) return;
+  const handleScanUniverse = async (urlOverride?: string) => {
+    const urlToProcess = urlOverride || profileUrl;
+    if (!urlToProcess.trim()) return;
 
-    const username = extractUsername(profileUrl);
+    const username = extractUsername(urlToProcess);
     console.log('Extracted username:', username);
 
     if (!username) {
-      setUniverseError(`Could not extract username from URL: "${profileUrl}"`);
+      setUniverseError(`Could not extract username from URL: "${urlToProcess}"`);
       return;
     }
 
@@ -86,6 +92,10 @@ const App: React.FC = () => {
         setUniverseData(repos);
         console.log('Universe Data set:', repos);
         setViewMode('universe');
+        // Update URL without reloading
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('user', username);
+        window.history.pushState({}, '', newUrl);
       }
     } catch (err: any) {
       console.error('Scan Error:', err);
@@ -94,6 +104,44 @@ const App: React.FC = () => {
       setIsLoadingUniverse(false);
     }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const userParam = params.get('user');
+    const repoParam = params.get('repo');
+    const embedParam = params.get('embed');
+    if (embedParam === 'true') {
+      setIsEmbed(true);
+    }
+
+    if (userParam && repoParam) {
+      // Load specific repo directly
+      setIsLoadingUniverse(true);
+      fetchRepoTree(userParam, repoParam)
+        .then(tree => {
+          if (tree) {
+            setData(tree);
+            setViewMode('repo');
+          }
+        })
+        .catch(err => {
+          console.error("Failed to load repo from URL:", err);
+          alert("Failed to load repository: " + err.message);
+          // Fallback to universe or home?
+          if (userParam) {
+            setProfileUrl(`https://github.com/${userParam}`);
+            handleScanUniverse(`https://github.com/${userParam}`);
+          }
+        })
+        .finally(() => {
+          setIsLoadingUniverse(false);
+        });
+
+    } else if (userParam) {
+      setProfileUrl(`https://github.com/${userParam}`);
+      handleScanUniverse(`https://github.com/${userParam}`);
+    }
+  }, []);
 
   const handleRepoSelect = async (repo: GithubRepo) => {
     console.log('handleRepoSelect called with:', repo);
@@ -113,10 +161,17 @@ const App: React.FC = () => {
         throw new Error("Could not determine owner of the repository.");
       }
 
-      const tree = await fetchRepoTree(username, repo.name, import.meta.env.VITE_GITHUB_TOKEN);
+      const tree = await fetchRepoTree(username, repo.name);
       if (tree) {
         setData(tree);
-        setViewMode('repo');
+        // Update URL to include repo
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('repo', repo.name);
+        window.history.pushState({}, '', newUrl);
+
+        // Start Transition
+        setTransitionTargetId(`repo-${repo.id}`);
+        setIsTransitioning(true);
         setSelectedNode(null);
       }
     } catch (e: any) {
@@ -124,6 +179,14 @@ const App: React.FC = () => {
       alert(e.message || 'Failed to load repository details.');
     } finally {
       setIsLoadingUniverse(false);
+    }
+  };
+
+  const handleTransitionComplete = () => {
+    if (isTransitioning) {
+      setViewMode('repo');
+      setIsTransitioning(false);
+      setTransitionTargetId(null);
     }
   };
 
@@ -142,145 +205,156 @@ const App: React.FC = () => {
     >
 
       {/* Navbar */}
-      <nav className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 md:px-8 py-4 md:py-6 z-50 pointer-events-none">
+      {/* Navbar */}
+      {!isEmbed && (
+        <nav className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 md:px-8 py-4 md:py-6 z-50 pointer-events-none">
 
-        {/* Left Side: Title (Home) or Upload New (Map) */}
-        <div className="pointer-events-auto flex items-center gap-3">
-          {(viewMode !== 'home') && (
-            <button
-              onClick={() => {
-                if (viewMode === 'repo' && universeData.length > 0) {
-                  setViewMode('universe');
-                  setSelectedNode(null);
-                } else {
-                  setData(null);
-                  setViewMode('home');
-                  setUniverseData([]);
-                  setProfileUrl('');
-                  setSelectedNode(null);
-                  setSelectedUniverseNode(null);
-                }
-              }}
-              className={`flex items-center gap-2 transition-all 
+          {/* Left Side: Title (Home) or Upload New (Map) */}
+          <div className="pointer-events-auto flex items-center gap-3">
+            {(viewMode !== 'home') && (
+              <button
+                onClick={() => {
+                  if (viewMode === 'repo' && universeData.length > 0) {
+                    // Update URL to remove repo param but keep user
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.delete('repo');
+                    window.history.pushState({}, '', newUrl);
+
+                    setViewMode('universe');
+                    setSelectedNode(null);
+                  } else {
+                    setData(null);
+                    setViewMode('home');
+                    setUniverseData([]);
+                    setProfileUrl('');
+                    setSelectedNode(null);
+                    setSelectedUniverseNode(null);
+
+                    // Clear all params
+                    window.history.pushState({}, '', window.location.pathname);
+                  }
+                }}
+                className={`flex items-center gap-2 transition-all 
                 ${viewMode === 'universe' && (theme === 'crayon' || theme === 'pencil' || theme === 'comic')
-                  ? `px-4 py-2 rounded-md shadow-md transform -rotate-1 hover:rotate-0 hover:scale-105 border-2 ${theme === 'pencil' ? 'bg-white text-black border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : ((theme === 'comic' || theme === 'crayon') ? 'bg-[#ffcc00] text-black border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-[#4a90e2] text-white border-[#2c3e50]')}`
-                  : 'text-gray-600 hover:text-black'
-                }`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-              <span className={viewMode === 'universe' && (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? "text-lg font-bold" : "font-semibold"}>
-                {viewMode === 'repo' && universeData.length > 0 ? "Back to Universe" : "Back to Home"}
-              </span>
-            </button>
-          )}
+                    ? `px-4 py-2 rounded-md shadow-md transform -rotate-1 hover:rotate-0 hover:scale-105 border-2 ${theme === 'pencil' ? 'bg-white text-black border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : ((theme === 'comic' || theme === 'crayon') ? 'bg-[#ffcc00] text-black border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-[#4a90e2] text-white border-[#2c3e50]')}`
+                    : 'text-gray-600 hover:text-black'
+                  }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                <span className={viewMode === 'universe' && (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? "text-lg font-bold" : "font-semibold"}>
+                  {viewMode === 'repo' && universeData.length > 0 ? "Back to Universe" : "Back to Home"}
+                </span>
+              </button>
+            )}
 
-          {viewMode === 'home' && (
-            <div className="flex items-center gap-2">
-              <svg className={`w-8 h-8 text-black`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <circle cx="12" cy="5" r="3" strokeWidth={2} />
-                <circle cx="5" cy="19" r="3" strokeWidth={2} />
-                <circle cx="19" cy="19" r="3" strokeWidth={2} />
-                <line x1="12" y1="8" x2="5" y2="16" strokeWidth={2} />
-                <line x1="12" y1="8" x2="19" y2="16" strokeWidth={2} />
-              </svg>
-              <span className={`text-2xl font-semibold tracking-tight text-black`}>
-                MapMyRepo
-              </span>
-            </div>
-          )}
-        </div>
+            {viewMode === 'home' && (
+              <div className="flex items-center gap-2">
+                <svg className={`w-8 h-8 text-black`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="5" r="3" strokeWidth={2} />
+                  <circle cx="5" cy="19" r="3" strokeWidth={2} />
+                  <circle cx="19" cy="19" r="3" strokeWidth={2} />
+                  <line x1="12" y1="8" x2="5" y2="16" strokeWidth={2} />
+                  <line x1="12" y1="8" x2="19" y2="16" strokeWidth={2} />
+                </svg>
+                <span className={`text-2xl font-semibold tracking-tight text-black`}>
+                  MapMyRepo
+                </span>
+              </div>
+            )}
+          </div>
 
-        {/* Center: Profile Link (Universe View Only) */}
-        {viewMode === 'universe' && universeData.length > 0 && (
-          <div className="pointer-events-auto absolute left-1/2 transform -translate-x-1/2 top-6">
-            <a
-              href={`https://github.com/${universeData[0].owner.login}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`text-xl hover:underline 
+          {/* Center: Profile Link (Universe View Only) */}
+          {viewMode === 'universe' && universeData.length > 0 && (
+            <div className="pointer-events-auto absolute left-1/2 transform -translate-x-1/2 top-6">
+              <a
+                href={`https://github.com/${universeData[0].owner.login}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`text-xl hover:underline 
                 ${(theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? 'font-bold' : ''} 
                 ${theme === 'pencil' ? 'text-black' : (theme === 'crayon' ? 'text-[#2c3e50]' : 'text-black')}`}
-            >
-              @{universeData[0].owner.login}
-            </a>
-          </div>
-        )}
+              >
+                @{universeData[0].owner.login}
+              </a>
+            </div>
+          )}
 
-        {/* Right Side: Appearance, GitHub & Theme Toggle */}
-        <div className="flex items-center gap-4 pointer-events-auto px-6 py-2">
+          {/* Right Side: Appearance, GitHub & Theme Toggle */}
+          <div className="flex items-center gap-4 pointer-events-auto px-6 py-2">
 
-          {/* Appearance Dropdown */}
-          <div className="relative group">
-            <button className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all border 
+            {/* Appearance Dropdown */}
+            <div className="relative group">
+              <button className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all border 
               ${theme === 'pencil' ? 'bg-white border-black text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' :
-                ((theme === 'comic' || theme === 'crayon') ? 'bg-[#ffcc00] border-black text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' :
-                  'bg-white border-[#d0d7de] text-gray-700 hover:text-black')}`}>
-              <span className={(theme === 'pencil' || theme === 'comic') ? "font-['Patrick_Hand'] font-bold" : ""}>Appearance</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-            </button>
+                  ((theme === 'comic' || theme === 'crayon') ? 'bg-[#ffcc00] border-black text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' :
+                    'bg-white border-[#d0d7de] text-gray-700 hover:text-black')}`}>
+                <span className={(theme === 'pencil' || theme === 'comic') ? "font-['Patrick_Hand'] font-bold" : ""}>Appearance</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </button>
 
-            {/* Dropdown Menu */}
-            <div className={`absolute right-0 top-full mt-2 w-48 rounded-md shadow-lg border overflow-hidden transition-all opacity-0 invisible group-hover:opacity-100 group-hover:visible transform origin-top-right z-50 
+              {/* Dropdown Menu */}
+              <div className={`absolute right-0 top-full mt-2 w-48 rounded-md shadow-lg border overflow-hidden transition-all opacity-0 invisible group-hover:opacity-100 group-hover:visible transform origin-top-right z-50 
               ${(theme === 'pencil' || theme === 'comic' || theme === 'crayon') ? 'bg-white border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' :
-                'bg-white border-[#d0d7de]'}`}>
-              <div className="p-1 flex flex-col gap-1">
-                <button
-                  onClick={() => setTheme('modern')}
-                  className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between group/item ${theme === 'modern' ? 'bg-[#0969da] text-white' : 'hover:bg-[#f6f8fa] text-gray-700'}`}
-                >
-                  <span className="font-['JetBrains_Mono']">Modern</span>
-                  {theme === 'modern' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
-                </button>
-                <button
-                  onClick={() => setTheme('crayon')}
-                  className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between group/item ${theme === 'crayon' ? 'bg-[#ffcc00] text-black border-2 border-black' : 'hover:bg-[#f6f8fa] text-gray-700'}`}
-                >
-                  <span className="font-['Patrick_Hand'] font-bold tracking-wide">Crayon</span>
-                  {theme === 'crayon' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
-                </button>
-                <button
-                  onClick={() => setTheme('pencil')}
-                  className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between group/item ${theme === 'pencil' ? 'bg-black text-white' : 'hover:bg-[#f6f8fa] text-gray-700'}`}
-                >
-                  <span className="font-['Patrick_Hand'] font-bold tracking-wide">Pencil</span>
-                  {theme === 'pencil' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
-                </button>
-                <button
-                  onClick={() => setTheme('comic')}
-                  className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between group/item ${theme === 'comic' ? 'bg-[#ffcc00] text-black border-2 border-black' : 'hover:bg-[#f6f8fa] text-gray-700'}`}
-                >
-                  <span className="font-['Patrick_Hand'] font-bold tracking-wide">Comic</span>
-                  {theme === 'comic' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
-                </button>
+                  'bg-white border-[#d0d7de]'}`}>
+                <div className="p-1 flex flex-col gap-1">
+                  <button
+                    onClick={() => setTheme('modern')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between group/item ${theme === 'modern' ? 'bg-[#0969da] text-white' : 'hover:bg-[#f6f8fa] text-gray-700'}`}
+                  >
+                    <span className="font-['JetBrains_Mono']">Modern</span>
+                    {theme === 'modern' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                  </button>
+                  <button
+                    onClick={() => setTheme('crayon')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between group/item ${theme === 'crayon' ? 'bg-[#ffcc00] text-black border-2 border-black' : 'hover:bg-[#f6f8fa] text-gray-700'}`}
+                  >
+                    <span className="font-['Patrick_Hand'] font-bold tracking-wide">Crayon</span>
+                    {theme === 'crayon' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                  </button>
+                  <button
+                    onClick={() => setTheme('pencil')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between group/item ${theme === 'pencil' ? 'bg-black text-white' : 'hover:bg-[#f6f8fa] text-gray-700'}`}
+                  >
+                    <span className="font-['Patrick_Hand'] font-bold tracking-wide">Pencil</span>
+                    {theme === 'pencil' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                  </button>
+                  <button
+                    onClick={() => setTheme('comic')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between group/item ${theme === 'comic' ? 'bg-[#ffcc00] text-black border-2 border-black' : 'hover:bg-[#f6f8fa] text-gray-700'}`}
+                  >
+                    <span className="font-['Patrick_Hand'] font-bold tracking-wide">Comic</span>
+                    {theme === 'comic' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* GitHub Link */}
-          <a
-            href="https://github.com/vasu-devs/MapMyRepo"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`p-2 rounded-full transition-all duration-300 ${theme === 'modern'
-              ? 'bg-black/5 hover:bg-black/10 backdrop-blur-md border border-black/10 text-black'
-              : (theme === 'pencil' || theme === 'comic' || theme === 'crayon')
-                ? 'text-black hover:text-gray-700'
-                : 'bg-[#fdfdf6] border-2 border-[#2c3e50] text-[#2c3e50] shadow-[4px_4px_0px_0px_#2c3e50] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#2c3e50]'
-              }`}
-            title="View on GitHub"
-          >
-            {(theme === 'pencil' || theme === 'comic' || theme === 'crayon') ? (
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-                <path d="M15 15L16 16" strokeWidth="1" strokeLinecap="round"></path>
-                <path d="M9 9L8 8" strokeWidth="1" strokeLinecap="round"></path>
-              </svg>
-            ) : (
-              <Github size={20} />
-            )}
-          </a>
-        </div>
-      </nav>
+            {/* GitHub Link */}
+            <a
+              href="https://github.com/vasu-devs/MapMyRepo"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`p-2 rounded-full transition-all duration-300 ${theme === 'modern'
+                ? 'bg-black/5 hover:bg-black/10 backdrop-blur-md border border-black/10 text-black'
+                : (theme === 'pencil' || theme === 'comic' || theme === 'crayon')
+                  ? 'text-black hover:text-gray-700'
+                  : 'bg-[#fdfdf6] border-2 border-[#2c3e50] text-[#2c3e50] shadow-[4px_4px_0px_0px_#2c3e50] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#2c3e50]'
+                }`}
+              title="View on GitHub"
+            >
+              {(theme === 'pencil' || theme === 'comic' || theme === 'crayon') ? (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                  <path d="M15 15L16 16" strokeWidth="1" strokeLinecap="round"></path>
+                  <path d="M9 9L8 8" strokeWidth="1" strokeLinecap="round"></path>
+                </svg>
+              ) : (
+                <Github size={20} />
+              )}
+            </a>
+          </div>
+        </nav>
+      )}
 
       <div className="flex-1 relative overflow-hidden flex flex-col items-center justify-center">
 
@@ -361,6 +435,8 @@ const App: React.FC = () => {
                   setSelectedUniverseNode(node);
                 }}
                 theme={theme}
+                focusedNodeId={transitionTargetId}
+                onTransitionComplete={handleTransitionComplete}
               />
             </ErrorBoundary>
 
@@ -369,6 +445,7 @@ const App: React.FC = () => {
               node={null}
               universeNode={selectedUniverseNode}
               rootNode={null}
+              universeData={universeData}
               theme={theme}
             />
           </div>
@@ -377,7 +454,7 @@ const App: React.FC = () => {
         {/* REPO VIEW */}
         {viewMode === 'repo' && data && (
           <>
-            <div className="absolute inset-0 z-0">
+            <div className="absolute inset-0 z-0 animate-fade-in">
               <RepoVisualizer
                 data={data}
                 onNodeSelect={setSelectedNode}
@@ -394,13 +471,16 @@ const App: React.FC = () => {
       </div>
 
       {/* Footer */}
-      <footer className={`relative md:absolute bottom-0 md:bottom-4 w-full text-center text-xs z-50 pointer-events-none py-4 md:py-0 ${(isComic || isCrayon) ? 'text-black' : 'text-gray-400'}`}>
-        <span className="pointer-events-auto">
-          Made with ❤️ by <a href="https://github.com/vasu-devs/MapMyRepo" target="_blank" rel="noopener noreferrer" className={`hover:underline ${(isComic || isCrayon) ? 'hover:text-black' : 'hover:text-black'}`}>Vasu-Devs</a>
-          <span className="mx-2">|</span>
-          <a href="https://x.com/Vasu_Devs" target="_blank" rel="noopener noreferrer" className={`hover:underline ${(isComic || isCrayon) ? 'hover:text-black' : 'hover:text-black'}`}>Twitter</a>
-        </span>
-      </footer>
+      {/* Footer */}
+      {!isEmbed && (
+        <footer className={`relative md:absolute bottom-0 md:bottom-4 w-full text-center text-xs z-50 pointer-events-none py-4 md:py-0 ${(isComic || isCrayon) ? 'text-black' : 'text-gray-400'}`}>
+          <span className="pointer-events-auto">
+            Made with ❤️ by <a href="https://github.com/vasu-devs/MapMyRepo" target="_blank" rel="noopener noreferrer" className={`hover:underline ${(isComic || isCrayon) ? 'hover:text-black' : 'hover:text-black'}`}>Vasu-Devs</a>
+            <span className="mx-2">|</span>
+            <a href="https://x.com/Vasu_Devs" target="_blank" rel="noopener noreferrer" className={`hover:underline ${(isComic || isCrayon) ? 'hover:text-black' : 'hover:text-black'}`}>Twitter</a>
+          </span>
+        </footer>
+      )}
     </div>
   );
 };

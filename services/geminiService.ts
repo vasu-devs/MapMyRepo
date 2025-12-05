@@ -155,6 +155,70 @@ export const askQuestion = async (node: FileSystemNode, rootNode: FileSystemNode
   return await callGemini(prompt);
 };
 
+export const askUniverseQuestion = async (
+  node: any,
+  allRepos: any[],
+  question: string
+): Promise<string> => {
+  let context = "";
+
+  if (node.type === 'USER') {
+    const totalStars = allRepos.reduce((sum, r) => sum + r.stargazers_count, 0);
+    const languages = [...new Set(allRepos.map((r: any) => r.language).filter(Boolean))];
+    const topRepos = [...allRepos].sort((a, b) => b.stargazers_count - a.stargazers_count).slice(0, 5);
+
+    context = `
+      User Context:
+      - Total Repositories: ${allRepos.length}
+      - Total Stars: ${totalStars}
+      - Languages: ${languages.join(', ')}
+      - Top Repositories: ${topRepos.map(r => `${r.name} (${r.stargazers_count} stars)`).join(', ')}
+    `;
+  } else if (node.type === 'LANGUAGE') {
+    const languageRepos = allRepos.filter((r: any) => r.language === node.name);
+    const totalStars = languageRepos.reduce((sum, r) => sum + r.stargazers_count, 0);
+
+    context = `
+      Language Context (${node.name}):
+      - Total Repositories: ${languageRepos.length}
+      - Total Stars: ${totalStars}
+      - Repositories: ${languageRepos.map(r => r.name).join(', ')}
+    `;
+  } else if (node.type === 'REPO') {
+    const repo = node.data;
+    if (repo) {
+      context = `
+        Repository Context (${repo.name}):
+        - Description: ${repo.description || "N/A"}
+        - Language: ${repo.language}
+        - Stars: ${repo.stargazers_count}
+        - Forks: ${repo.forks_count}
+        - Open Issues: ${repo.open_issues_count}
+        - Created: ${repo.created_at}
+        - Last Updated: ${repo.updated_at}
+      `;
+    }
+  }
+
+  const prompt = `
+    You are an expert software engineer analyzing a GitHub user's profile and repositories.
+    
+    Target Node: "${node.name}" (${node.type})
+    
+    Context:
+    ${context}
+    
+    User Question: "${question}"
+    
+    Instructions:
+    1. Answer directly and helpfully.
+    2. Use the provided context to give specific details.
+    3. Keep the answer under 150 words. Use Markdown.
+  `;
+
+  return await callGemini(prompt);
+};
+
 export const findRelevantFile = async (query: string, allFilePaths: string[]): Promise<string | null> => {
   const pathList = allFilePaths.slice(0, 1000).join('\n');
   const prompt = `
