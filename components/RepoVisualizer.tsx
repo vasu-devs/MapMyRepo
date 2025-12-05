@@ -7,7 +7,7 @@ import { fetchRemoteFileContent } from '../services/fileService';
 interface RepoVisualizerProps {
     data: FileSystemNode;
     onNodeSelect: (node: FileSystemNode) => void;
-    theme: 'modern' | 'crayon' | 'pencil' | 'comic';
+    theme: 'modern' | 'pencil' | 'comic';
 }
 
 // Watercolor Palette for Comic Theme (Repo Nodes)
@@ -321,13 +321,13 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
                 if (theme === 'comic') return 4; // Thinner than before for Comic
                 const target = d.target as GraphNode;
                 const depth = target.depth || 1;
-                // Thicker strokes for Crayon/Pencil theme
+                // Thicker strokes for Pencil theme
                 const baseWidth = Math.max(1, 5 - (depth * 0.8));
-                return (theme === 'crayon' || theme === 'pencil') ? baseWidth + 1 : baseWidth;
+                return (theme === 'pencil') ? baseWidth + 1 : baseWidth;
             })
             .attr("stroke-dasharray", "none")
-            // Apply sketchy filter to links in Crayon/Pencil/Comic mode
-            .attr("filter", (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? "url(#sketchy-border-repo)" : null);
+            // Apply sketchy filter to links in Pencil/Comic mode
+            .attr("filter", (theme === 'pencil' || theme === 'comic') ? "url(#sketchy-border-repo)" : null);
 
         // Update Nodes
         const nodeSelection = nodeGroup.selectAll("g")
@@ -419,7 +419,7 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
             .attr("stroke-dasharray", "none")
             .attr("filter", d => {
                 if (theme === 'comic') return "url(#grainy-texture-repo) url(#sketchy-border-repo)"; // Apply both grain and sketch
-                if (theme === 'crayon' || theme === 'pencil') return "url(#sketchy-border-repo)";
+                if (theme === 'pencil') return "url(#sketchy-border-repo)";
                 if (theme === 'modern') return "url(#glow-repo)";
                 return null;
             })
@@ -454,11 +454,11 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
             .style("stroke-width", (theme === 'pencil' || theme === 'comic') ? "4px" : "3px")
             .style("stroke-linecap", "round")
             .style("stroke-linejoin", "round")
-            .style("font-family", (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? '"Patrick Hand", cursive' : '"JetBrains Mono", monospace')
+            .style("font-family", (theme === 'pencil' || theme === 'comic') ? '"Patrick Hand", cursive' : '"JetBrains Mono", monospace')
             .style("font-weight", (theme === 'pencil' || theme === 'comic') ? "900" : "normal")
             .style("font-size", d => {
                 const baseSize = d.type === NodeType.FOLDER ? 12 : 10;
-                return (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? `${baseSize + 2}px` : `${baseSize}px`;
+                return (theme === 'pencil' || theme === 'comic') ? `${baseSize + 2}px` : `${baseSize}px`;
             });
 
         newNodes.select(".indicator")
@@ -466,7 +466,7 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
             .attr("fill", "none")
             .attr("stroke", theme === 'pencil' ? "#000000" : (theme === 'comic' ? "#000000" : "#0969da"))
             .attr("stroke-width", theme === 'comic' ? 2 : 1)
-            .attr("stroke-dasharray", (theme === 'crayon' || theme === 'pencil') ? "4,2" : (theme === 'comic' ? "none" : "2,2"))
+            .attr("stroke-dasharray", (theme === 'pencil') ? "4,2" : (theme === 'comic' ? "none" : "2,2"))
             .style("opacity", d => {
                 const hasKids = (d.data.children && d.data.children.length > 0);
                 const isAnalyzable = (d.type === NodeType.FILE && !d.data.analyzed);
@@ -701,7 +701,7 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
     return (
         <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-[#ffffff]">
             {/* Background */}
-            {(theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? (
+            {(theme === 'pencil' || theme === 'comic') ? (
                 <div className="absolute inset-0 pointer-events-none opacity-40"
                     style={{
                         backgroundImage: theme === 'pencil'
@@ -725,7 +725,7 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
                                 'bg-white border-[#d0d7de]')}`}>
                         <div className={`w-2 h-2 rounded-full animate-ping ${theme === 'pencil' ? 'bg-black' : (theme === 'comic' ? 'bg-black' : 'bg-[#0969da]')}`} />
                         <span className={`text-xs font-semibold 
-                        ${(theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? 'font-[\'Patrick_Hand\']' : 'font-sans'} 
+                        ${(theme === 'pencil' || theme === 'comic') ? 'font-[\'Patrick_Hand\']' : 'font-sans'} 
                         ${theme === 'pencil' ? 'text-black' : (theme === 'comic' ? 'text-black' : 'text-[#1f2328]')}`}>
                             Analyzing Structure...
                         </span>
@@ -740,11 +740,10 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
                 <div className={`p-3 rounded-md border shadow-sm flex flex-col gap-2 backdrop-blur-sm 
                 ${theme === 'pencil' ? 'bg-white/90 border-black border-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' :
                         (theme === 'comic' ? 'bg-[#f0e6d2]/90 border-black border-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' :
-                            (theme === 'crayon' ? 'bg-[#fdfbf7]/90 border-black border-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' :
-                                'bg-white/90 border-[#d0d7de]'))}`}>
+                            'bg-white/90 border-[#d0d7de]')}`}>
 
                     <div className={`text-[10px] uppercase tracking-wider mb-1 font-bold 
-                    ${(theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? 'font-[\'Patrick_Hand\'] text-base' : ''} 
+                    ${(theme === 'pencil' || theme === 'comic') ? 'font-[\'Patrick_Hand\'] text-base' : ''} 
                     ${theme === 'pencil' ? 'text-black' : (theme === 'comic' ? 'text-black' : 'text-[#656d76]')}`}>
                         Legend
                     </div>
@@ -754,35 +753,35 @@ export const RepoVisualizer: React.FC<RepoVisualizerProps> = ({ data, onNodeSele
                         ${theme === 'pencil' ? 'bg-white border-black' :
                                 (theme === 'comic' ? `bg-[${watercolorRepoColors.FOLDER}] border-black border-2` : 'bg-[#54aeff]')}`}
                             style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-folder)' : 'none', backgroundColor: theme === 'comic' ? watercolorRepoColors.FOLDER : undefined }}></span>
-                        <span className={`text-xs ${(theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? 'text-black' : (theme === 'comic' ? 'text-black' : 'text-[#1f2328]')}`}>Folder</span>
+                        <span className={`text-xs ${(theme === 'pencil' || theme === 'comic') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? 'text-black' : (theme === 'comic' ? 'text-black' : 'text-[#1f2328]')}`}>Folder</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className={`w-2.5 h-2.5 rounded-full border border-black/20 
                         ${theme === 'pencil' ? 'bg-white border-black' :
                                 (theme === 'comic' ? `bg-[${watercolorRepoColors.FILE}] border-black border-2` : 'bg-[#8b949e]')}`}
                             style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-file)' : 'none', backgroundColor: theme === 'comic' ? watercolorRepoColors.FILE : undefined }}></span>
-                        <span className={`text-xs ${(theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? 'text-black' : (theme === 'comic' ? 'text-black' : 'text-[#1f2328]')}`}>File</span>
+                        <span className={`text-xs ${(theme === 'pencil' || theme === 'comic') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? 'text-black' : (theme === 'comic' ? 'text-black' : 'text-[#1f2328]')}`}>File</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className={`w-2.5 h-2.5 rounded-full border border-black/20 
                         ${theme === 'pencil' ? 'bg-white border-black' :
                                 (theme === 'comic' ? `bg-[${watercolorRepoColors.FUNCTION}] border-black border-2` : 'bg-[#d2a8ff]')}`}
                             style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-function)' : 'none', backgroundColor: theme === 'comic' ? watercolorRepoColors.FUNCTION : undefined }}></span>
-                        <span className={`text-xs ${(theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? 'text-black' : (theme === 'comic' ? 'text-black' : 'text-[#1f2328]')}`}>Function</span>
+                        <span className={`text-xs ${(theme === 'pencil' || theme === 'comic') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? 'text-black' : (theme === 'comic' ? 'text-black' : 'text-[#1f2328]')}`}>Function</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className={`w-2.5 h-2.5 rounded-full border border-black/20 
                         ${theme === 'pencil' ? 'bg-white border-black' :
                                 (theme === 'comic' ? `bg-[${watercolorRepoColors.CLASS}] border-black border-2` : 'bg-[#ffa657]')}`}
                             style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-class)' : 'none', backgroundColor: theme === 'comic' ? watercolorRepoColors.CLASS : undefined }}></span>
-                        <span className={`text-xs ${(theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? 'text-black' : (theme === 'comic' ? 'text-black' : 'text-[#1f2328]')}`}>Class</span>
+                        <span className={`text-xs ${(theme === 'pencil' || theme === 'comic') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? 'text-black' : (theme === 'comic' ? 'text-black' : 'text-[#1f2328]')}`}>Class</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className={`w-2.5 h-2.5 rounded-full border border-black/20 
                         ${theme === 'pencil' ? 'bg-white border-black' :
                                 (theme === 'comic' ? `bg-[${watercolorRepoColors.COMPONENT}] border-black border-2` : 'bg-[#7ee787]')}`}
                             style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-component)' : 'none', backgroundColor: theme === 'comic' ? watercolorRepoColors.COMPONENT : undefined }}></span>
-                        <span className={`text-xs ${(theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? 'text-black' : (theme === 'comic' ? 'text-black' : 'text-[#1f2328]')}`}>Component</span>
+                        <span className={`text-xs ${(theme === 'pencil' || theme === 'comic') ? 'font-[\'Patrick_Hand\']' : ''} ${theme === 'pencil' ? 'text-black' : (theme === 'comic' ? 'text-black' : 'text-[#1f2328]')}`}>Component</span>
                     </div>
                 </div>
             </div>

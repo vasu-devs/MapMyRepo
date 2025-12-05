@@ -8,7 +8,7 @@ interface SidebarProps {
     universeNode?: UniverseNode | null;
     rootNode: FileSystemNode | null;
     universeData?: GithubRepo[];
-    theme?: 'modern' | 'crayon' | 'pencil' | 'comic';
+    theme?: 'modern' | 'pencil' | 'comic';
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ node, universeNode, rootNode, universeData = [], theme = 'modern' }) => {
@@ -113,7 +113,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, universeNode, rootNode, 
 
     // Styles based on Theme
     const isPencil = theme === 'pencil';
-    const isCrayon = theme === 'crayon';
     const isComic = theme === 'comic';
 
     const panelClasses = `fixed right-2 md:right-4 top-20 md:top-24 bottom-2 md:bottom-4 flex flex-col z-[60] md:z-20 transition-all duration-500 ease-out 
@@ -129,7 +128,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ node, universeNode, rootNode, 
     const widthClass = isCollapsed || !activeNode ? 'w-0 md:w-16 translate-x-full md:translate-x-0' : 'w-[calc(100vw-1rem)] md:w-[400px] translate-x-0';
 
     return (
-        <div className={`${panelClasses} ${widthClass} ${isPencil || isCrayon || isComic ? "font-['Patrick_Hand']" : ""}`}>
+        <div className={`${panelClasses} ${widthClass} ${isPencil || isComic ? "font-['Patrick_Hand']" : ""}`}>
 
             {/* Collapsed Dock Content */}
             <div className={`flex flex-col items-center py-6 h-full transition-opacity duration-300 ${!isCollapsed && activeNode ? 'hidden' : 'flex'}`}>

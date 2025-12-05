@@ -6,7 +6,7 @@ interface UserUniverseProps {
     repos: GithubRepo[];
     onRepoSelect: (repo: GithubRepo) => void;
     onNodeSelect?: (node: UniverseNode) => void;
-    theme: 'modern' | 'crayon' | 'pencil' | 'comic';
+    theme: 'modern' | 'pencil' | 'comic';
     focusedNodeId?: string | null;
     onTransitionComplete?: () => void;
 }
@@ -110,8 +110,8 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
             id: 'user-sun',
             name: repos[0]?.owner.login || 'User',
             type: 'USER',
-            r: (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? 70 : 60,
-            color: theme === 'pencil' ? '#ffffff' : (theme === 'comic' || theme === 'crayon' ? '#F4A460' : '#FFD700'), // Comic/Crayon: Sandy Brown for User
+            r: (theme === 'pencil' || theme === 'comic') ? 70 : 60,
+            color: theme === 'pencil' ? '#ffffff' : (theme === 'comic' ? '#F4A460' : '#FFD700'), // Comic: Sandy Brown for User
             fx: 0,
             fy: 0
         };
@@ -192,7 +192,7 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
         // Define Filters & Patterns
         const defs = svg.append("defs");
 
-        if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') {
+        if (theme === 'pencil' || theme === 'comic') {
             // Sketchy Border Filter (for outlines)
             const borderFilter = defs.append("filter")
                 .attr("id", "sketchy-border")
@@ -210,10 +210,10 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
             borderFilter.append("feDisplacementMap")
                 .attr("in", "SourceGraphic")
                 .attr("in2", "noise")
-                .attr("scale", (theme === 'comic' || theme === 'crayon') ? "2" : "3");
+                .attr("scale", (theme === 'comic') ? "2" : "3");
 
-            // Grainy Texture Filter (for fills) - NEW for Comic & Crayon
-            if (theme === 'comic' || theme === 'crayon') {
+            // Grainy Texture Filter (for fills) - NEW for Comic
+            if (theme === 'comic') {
                 const grainFilter = defs.append("filter")
                     .attr("id", "grainy-texture")
                     .attr("x", "0%")
@@ -358,12 +358,12 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
 
         // Links
         const link = g.append("g")
-            .attr("stroke", theme === 'pencil' ? "#000000" : ((theme === 'comic' || theme === 'crayon') ? "#2F4F4F" : "#999")) // Dark Slate Gray for Comic/Crayon Links
-            .attr("stroke-width", (theme === 'comic' || theme === 'crayon') ? 4 : (theme === 'pencil' ? 2 : 1)) // Thicker for Comic/Crayon
-            .attr("stroke-opacity", (theme === 'comic' || theme === 'crayon') ? 0.8 : (theme === 'pencil' ? 0.6 : 0.2))
+            .attr("stroke", theme === 'pencil' ? "#000000" : ((theme === 'comic') ? "#2F4F4F" : "#999")) // Dark Slate Gray for Comic Links
+            .attr("stroke-width", (theme === 'comic') ? 4 : (theme === 'pencil' ? 2 : 1)) // Thicker for Comic
+            .attr("stroke-opacity", (theme === 'comic') ? 0.8 : (theme === 'pencil' ? 0.6 : 0.2))
             .attr("stroke-linecap", "round")
             .attr("stroke-dasharray", "none")
-            .attr("filter", (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? "url(#sketchy-border)" : null)
+            .attr("filter", (theme === 'pencil' || theme === 'comic') ? "url(#sketchy-border)" : null)
             .selectAll("line")
             .data(simulationLinks)
             .join("line");
@@ -396,17 +396,17 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
             })
             .attr("stroke", d => {
                 if (theme === 'pencil') return "#000000";
-                if (theme === 'comic' || theme === 'crayon') return "#000000"; // Black outline for Comic/Crayon
+                if (theme === 'comic') return "#000000"; // Black outline for Comic
                 return "#000";
             })
             .attr("stroke-width", d => {
-                if (theme === 'comic' || theme === 'crayon') return 3; // Thinner outline for Comic/Crayon
+                if (theme === 'comic') return 3; // Thinner outline for Comic
                 if (theme === 'pencil') return d.type === 'USER' ? 3 : 2;
                 return d.type === 'REPO' ? 1 : 0;
             })
             .attr("stroke-dasharray", "none")
             .attr("filter", d => {
-                if (theme === 'comic' || theme === 'crayon') return "url(#grainy-texture) url(#sketchy-border)"; // Apply both grain and sketch
+                if (theme === 'comic') return "url(#grainy-texture) url(#sketchy-border)"; // Apply both grain and sketch
                 if (theme === 'pencil') return "url(#sketchy-border)";
                 if (theme === 'modern' && (d.type === 'USER' || d.type === 'LANGUAGE')) return "url(#glow)";
                 return null;
@@ -418,27 +418,27 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
             .append("circle")
             .attr("r", d => (d.r || 30) + 5)
             .attr("fill", "none")
-            .attr("stroke", theme === 'pencil' ? "#000000" : ((theme === 'comic' || theme === 'crayon') ? "#000000" : "#000"))
-            .attr("stroke-width", (theme === 'comic' || theme === 'crayon') ? 2 : 1)
-            .attr("stroke-dasharray", (theme === 'comic' || theme === 'crayon') ? "none" : "2,2") // Solid line for Comic/Crayon
+            .attr("stroke", theme === 'pencil' ? "#000000" : ((theme === 'comic') ? "#000000" : "#000"))
+            .attr("stroke-width", (theme === 'comic') ? 2 : 1)
+            .attr("stroke-dasharray", (theme === 'comic') ? "none" : "2,2") // Solid line for Comic
             .attr("opacity", d => expandedLanguages.has(d.language || '') ? 0 : 0.5); // Hide when expanded
 
         // Labels
         node.append("text")
             .text(d => d.name)
             .attr("text-anchor", "middle")
-            .attr("dominant-baseline", (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? "middle" : "auto")
+            .attr("dominant-baseline", (theme === 'pencil' || theme === 'comic') ? "middle" : "auto")
             .attr("dy", d => {
-                if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') return d.type === 'REPO' ? -((d.r || 5) + 10) : 0;
+                if (theme === 'pencil' || theme === 'comic') return d.type === 'REPO' ? -((d.r || 5) + 10) : 0;
                 return 4;
             })
             .attr("x", d => {
-                if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') return 0;
+                if (theme === 'pencil' || theme === 'comic') return 0;
                 return (d.r || 0) + 5;
             })
-            .style("font-family", (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? "'Patrick Hand', cursive" : "inherit")
+            .style("font-family", (theme === 'pencil' || theme === 'comic') ? "'Patrick Hand', cursive" : "inherit")
             .style("font-size", d => {
-                if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') {
+                if (theme === 'pencil' || theme === 'comic') {
                     if (d.type === 'USER') return "24px";
                     if (d.type === 'LANGUAGE') return "16px";
                     return "14px";
@@ -448,17 +448,17 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
             .style("font-weight", (theme === 'pencil' || theme === 'comic') ? "900" : "bold")
             .style("fill", d => {
                 if (theme === 'pencil') return "#000000";
-                if (theme === 'comic' || theme === 'crayon') return "#000000"; // Black text for Comic/Crayon
+                if (theme === 'comic') return "#000000"; // Black text for Comic
                 return "#333";
             })
             // Improved Readability
             .style("paint-order", "stroke")
             .style("stroke", d => {
                 if (theme === 'pencil') return "#ffffff";
-                if (theme === 'comic' || theme === 'crayon') return "#ffffff"; // White stroke for Comic/Crayon text
+                if (theme === 'comic') return "#ffffff"; // White stroke for Comic text
                 return "none";
             })
-            .style("stroke-width", (theme === 'pencil' || theme === 'comic' || theme === 'crayon') ? "4px" : "0px")
+            .style("stroke-width", (theme === 'pencil' || theme === 'comic') ? "4px" : "0px")
             .style("stroke-linecap", "round")
             .style("stroke-linejoin", "round")
             .style("text-shadow", d => {
@@ -478,13 +478,13 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
                 .transition().duration(200)
                 .style("opacity", 1)
                 .style("font-size", () => {
-                    if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') return d.type === 'REPO' ? "14px" : (d.type === 'USER' ? "28px" : "18px");
+                    if (theme === 'pencil' || theme === 'comic') return d.type === 'REPO' ? "14px" : (d.type === 'USER' ? "28px" : "18px");
                     return "14px";
                 })
-                .style("fill", theme === 'pencil' ? "#000000" : ((theme === 'comic' || theme === 'crayon') ? "#000000" : "#333"))
+                .style("fill", theme === 'pencil' ? "#000000" : ((theme === 'comic') ? "#000000" : "#333"))
                 .style("text-shadow", "none")
                 .attr("dy", () => {
-                    if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') return d.type === 'REPO' ? -((d.r || 5) + 15) : 0;
+                    if (theme === 'pencil' || theme === 'comic') return d.type === 'REPO' ? -((d.r || 5) + 15) : 0;
                     return 4;
                 })
                 .style("z-index", 100);
@@ -500,12 +500,12 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
                     .transition().duration(200)
                     .style("opacity", 1)
                     .style("font-size", () => {
-                        if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') return d.type === 'USER' ? "24px" : d.type === 'LANGUAGE' ? "16px" : "14px";
+                        if (theme === 'pencil' || theme === 'comic') return d.type === 'USER' ? "24px" : d.type === 'LANGUAGE' ? "16px" : "14px";
                         return d.type === 'USER' ? "16px" : d.type === 'LANGUAGE' ? "14px" : "10px";
                     })
                     .style("fill", d => {
                         if (theme === 'pencil') return "#000000";
-                        if (theme === 'comic' || theme === 'crayon') return "#000000";
+                        if (theme === 'comic') return "#000000";
                         return "#333";
                     })
                     .style("text-shadow", d => {
@@ -513,7 +513,7 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
                         return "none";
                     })
                     .attr("dy", () => {
-                        if (theme === 'crayon' || theme === 'pencil' || theme === 'comic') return d.type === 'REPO' ? -((d.r || 5) + 10) : 0;
+                        if (theme === 'pencil' || theme === 'comic') return d.type === 'REPO' ? -((d.r || 5) + 10) : 0;
                         return 4;
                     });
             });
@@ -603,14 +603,14 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
     }, [focusNodeId, propFocusedNodeId, nodes]);
 
     // Background Styles
-    const backgroundStyle = (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? {
+    const backgroundStyle = (theme === 'pencil' || theme === 'comic') ? {
         backgroundColor: theme === 'pencil' ? '#ffffff' : (theme === 'comic' ? '#f0e6d2' : '#fdfdf6'), // Comic: Beige
         backgroundImage: theme === 'pencil'
             ? 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.05\'/%3E%3C/svg%3E")'
-            : ((theme === 'comic' || theme === 'crayon')
+            : ((theme === 'comic')
                 ? 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.6\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.15\' fill=\'%238b7355\'/%3E%3C/svg%3E")' // Beige noise
                 : 'radial-gradient(#d0d0d0 1px, transparent 1px)'),
-        backgroundSize: (theme === 'pencil' || theme === 'comic' || theme === 'crayon') ? 'auto' : '20px 20px'
+        backgroundSize: (theme === 'pencil' || theme === 'comic') ? 'auto' : '20px 20px'
     } : {
         backgroundColor: '#ffffff',
         backgroundImage: 'none'
@@ -624,30 +624,30 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
 
             {/* Legend */}
             {
-                (theme === 'crayon' || theme === 'pencil' || theme === 'comic') ? (
+                (theme === 'pencil' || theme === 'comic') ? (
                     <div className={`absolute bottom-4 left-4 z-20 p-4 rounded-lg border-2 
                         ${theme === 'pencil' ? 'border-black bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' :
-                            ((theme === 'comic' || theme === 'crayon') ? 'border-black bg-[#f0e6d2] text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'border-[#2c3e50] bg-[#fdfdf6] text-[#2c3e50] shadow-lg')} 
+                            ((theme === 'comic') ? 'border-black bg-[#f0e6d2] text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'border-[#2c3e50] bg-[#fdfdf6] text-[#2c3e50] shadow-lg')} 
                         font-['Patrick_Hand'] transform rotate-1`}>
-                        <h3 className={`text-lg font-bold mb-2 border-b ${theme === 'pencil' ? 'border-black' : ((theme === 'comic' || theme === 'crayon') ? 'border-black' : 'border-[#2c3e50]')} pb-1`}>LEGEND</h3>
+                        <h3 className={`text-lg font-bold mb-2 border-b ${theme === 'pencil' ? 'border-black' : ((theme === 'comic') ? 'border-black' : 'border-[#2c3e50]')} pb-1`}>LEGEND</h3>
                         <div className="flex items-center gap-2 mb-1">
                             <div className={`w-4 h-4 rounded-full border-2 
                                 ${theme === 'pencil' ? 'border-black bg-white' :
-                                    ((theme === 'comic' || theme === 'crayon') ? 'border-black bg-[#F4A460]' : 'border-[#2c3e50] bg-white')}`}
+                                    ((theme === 'comic') ? 'border-black bg-[#F4A460]' : 'border-[#2c3e50] bg-white')}`}
                                 style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-dots)' : 'none' }}></div>
                             <span>User</span>
                         </div>
                         <div className="flex items-center gap-2 mb-1">
                             <div className={`w-4 h-4 rounded-full border-2 
                                 ${theme === 'pencil' ? 'border-black bg-white' :
-                                    ((theme === 'comic' || theme === 'crayon') ? 'border-black bg-[#89CFF0]' : 'border-[#2c3e50] bg-[#3178c6]')}`}
+                                    ((theme === 'comic') ? 'border-black bg-[#89CFF0]' : 'border-[#2c3e50] bg-[#3178c6]')}`}
                                 style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-lines)' : 'none' }}></div>
                             <span>Language (Click to Expand)</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className={`w-3 h-3 rounded-full border 
                                 ${theme === 'pencil' ? 'border-black bg-white' :
-                                    ((theme === 'comic' || theme === 'crayon') ? 'border-black bg-[#89CFF0]' : 'border-[#2c3e50] bg-[#3178c6]')}`}
+                                    ((theme === 'comic') ? 'border-black bg-[#89CFF0]' : 'border-[#2c3e50] bg-[#3178c6]')}`}
                                 style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-cross)' : 'none' }}></div>
                             <span>Repo</span>
                         </div>

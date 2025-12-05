@@ -4,7 +4,7 @@ import { FileSystemNode } from '../types';
 
 interface FileUploaderProps {
     onUploadComplete: (rootNode: FileSystemNode) => void;
-    theme?: 'modern' | 'crayon' | 'pencil' | 'comic';
+    theme?: 'modern' | 'pencil' | 'comic';
 }
 
 export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, theme = 'modern' }) => {
@@ -12,198 +12,8 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, th
     const [loading, setLoading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [repoUrl, setRepoUrl] = useState('');
-    const [hasMoved, setHasMoved] = useState(false);
 
-    // Refs for direct DOM manipulation (smoother performance)
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const nodeRef = useRef<HTMLDivElement>(null);
 
-    // Animation State Refs
-    const lastMouseMoveRef = useRef(Date.now());
-    const mousePosRef = useRef({ x: 0, y: 0 });
-
-    // DOM Cursor Movement (Dedicated listener to fix lag/stuck issues)
-    useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
-            const x = e.clientX;
-            const y = e.clientY;
-            mousePosRef.current = { x, y };
-            lastMouseMoveRef.current = Date.now();
-
-            if (!hasMoved) setHasMoved(true);
-
-            if (nodeRef.current) {
-                nodeRef.current.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
-            }
-        };
-        window.addEventListener('mousemove', handleMouseMove);
-        return () => window.removeEventListener('mousemove', handleMouseMove);
-    }, [hasMoved]);
-
-    // Canvas Animation Effect (Comet Streak + Floating Dots)
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        let animationFrameId: number;
-        let trail: { x: number; y: number }[] = [];
-        const trailLength = 20;
-        const gridSize = 32;
-
-        // Floating Dots System
-        interface Dot {
-            x: number;
-            y: number;
-            vx: number;
-            vy: number;
-            size: number;
-        }
-        let dots: Dot[] = [];
-        const dotCount = 50;
-        let cursorGlowSize = 25; // Base size
-        const baseGlowSize = 25;
-        const maxGlowSize = 150;
-
-        const initDots = () => {
-            dots = [];
-            for (let i = 0; i < dotCount; i++) {
-                dots.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    vx: (Math.random() - 0.5) * 0.5,
-                    vy: (Math.random() - 0.5) * 0.5,
-                    size: Math.random() * 2 + 1
-                });
-            }
-        };
-
-        const resize = () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            initDots();
-        };
-        window.addEventListener('resize', resize);
-        resize();
-
-        const render = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const mouseX = mousePosRef.current.x;
-            const mouseY = mousePosRef.current.y;
-            const now = Date.now();
-            const isIdle = (now - lastMouseMoveRef.current) > 100; // 100ms idle threshold
-
-            // Update trail
-            trail.push({ x: mouseX, y: mouseY });
-            if (trail.length > trailLength) trail.shift();
-
-            // Update Cursor Size (Decay if idle or just naturally over time)
-            if (isIdle && cursorGlowSize > baseGlowSize) {
-                cursorGlowSize *= 0.95; // Fast decay when idle
-                if (cursorGlowSize < baseGlowSize) cursorGlowSize = baseGlowSize;
-            } else if (cursorGlowSize > baseGlowSize) {
-                cursorGlowSize *= 0.995; // Slow decay when moving
-            }
-
-            // 1. Draw Floating Dots & Handle Collection
-            ctx.fillStyle = 'rgba(9, 105, 218, 0.5)';
-
-            dots.forEach(dot => {
-                // Move
-                dot.x += dot.vx;
-                dot.y += dot.vy;
-
-                // Bounce
-                if (dot.x < 0 || dot.x > canvas.width) dot.vx *= -1;
-                if (dot.y < 0 || dot.y > canvas.height) dot.vy *= -1;
-
-                // Collection Check
-                const dx = mouseX - dot.x;
-                const dy = mouseY - dot.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-
-                // If collected
-                if (dist < cursorGlowSize) {
-                    // Respawn elsewhere
-                    dot.x = Math.random() * canvas.width;
-                    dot.y = Math.random() * canvas.height;
-
-                    // Grow cursor
-                    if (cursorGlowSize < maxGlowSize) {
-                        cursorGlowSize += 2;
-                    }
-                }
-
-                // Draw Dot
-                ctx.beginPath();
-                ctx.arc(dot.x, dot.y, dot.size, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
-            // 2. Draw the Trail (The "Light")
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-
-            if (trail.length > 1) {
-                for (let i = 0; i < trail.length - 1; i++) {
-                    const p1 = trail[i];
-                    const p2 = trail[i + 1];
-                    const progress = i / (trail.length - 1);
-                    const opacity = progress;
-
-                    ctx.beginPath();
-                    ctx.moveTo(p1.x, p1.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.lineWidth = 4 * (0.4 + 0.6 * progress);
-                    ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
-                    ctx.stroke();
-                }
-            }
-
-            // Head Glow (Dynamic Size)
-            if (trail.length > 0) {
-                const head = trail[trail.length - 1];
-                const gradient = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, cursorGlowSize);
-                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-                gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.2)');
-                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(head.x, head.y, cursorGlowSize, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            // 3. Masking - Keep only the parts of the grid that overlap with the light
-            ctx.globalCompositeOperation = 'source-in';
-
-            // 4. Draw the Grid
-            ctx.beginPath();
-            ctx.strokeStyle = '#0969da';
-            ctx.lineWidth = 1.5;
-
-            for (let x = 0; x <= canvas.width; x += gridSize) {
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, canvas.height);
-            }
-            for (let y = 0; y <= canvas.height; y += gridSize) {
-                ctx.moveTo(0, y);
-                ctx.lineTo(canvas.width, y);
-            }
-            ctx.stroke();
-
-            ctx.globalCompositeOperation = 'source-over';
-            animationFrameId = requestAnimationFrame(render);
-        };
-
-        render();
-
-        return () => {
-            window.removeEventListener('resize', resize);
-            cancelAnimationFrame(animationFrameId);
-        };
-    }, []);
 
     // DOM Cursor Movement (Handled in Canvas Loop now for sync)
     // We remove the separate useEffect to avoid fighting with the idle animation
@@ -313,57 +123,22 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, th
 
     // --- Theme Helpers ---
     const isPencil = theme === 'pencil';
-    const isCrayon = theme === 'crayon';
     const isComic = theme === 'comic';
 
     // Sketchy Border Radius for Pencil/Comic/Crayon Theme
-    const sketchyBorder = (isPencil || isComic || isCrayon) ? { borderRadius: '255px 15px 225px 15px / 15px 225px 15px 255px' } : {};
+    const sketchyBorder = (isPencil || isComic) ? { borderRadius: '255px 15px 225px 15px / 15px 225px 15px 255px' } : {};
 
     return (
-        <div className={`flex flex-col items-center justify-center h-full w-full transition-colors duration-300 cursor-none relative overflow-hidden
-            bg-[#ffffff] text-black
-            ${(isPencil || isCrayon || isComic) ? "font-['Patrick_Hand']" : ""}
+        <div className={`flex flex-col items-center justify-center h-full w-full transition-colors duration-300 relative overflow-hidden
+            bg-transparent text-black
+            ${(isPencil || isComic) ? "font-['Patrick_Hand']" : ""}
         `}>
-
-            {/* Background */}
-            {(isPencil || isComic || isCrayon) ? (
-                <div className="absolute inset-0 pointer-events-none opacity-40"
-                    style={{
-                        backgroundImage: isPencil
-                            ? 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.05\'/%3E%3C/svg%3E")'
-                            : 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.6\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.15\' fill=\'%238b7355\'/%3E%3C/svg%3E")' // Beige noise for Comic/Crayon
-                    }}
-                />
-            ) : (
-                <div className={`absolute inset-0 bg-[linear-gradient(#e1e4e8_1px,transparent_1px),linear-gradient(90deg,#e1e4e8_1px,transparent_1px)] bg-[size:32px_32px] opacity-[0.2] pointer-events-none`} />
-            )}
-
-            {/* Interactive Grid Canvas (Streak Effect) - Hide in Pencil Mode for cleaner look? Or keep? Keeping for now but maybe subtle. */}
-            <canvas
-                ref={canvasRef}
-                className="absolute inset-0 pointer-events-none transition-opacity duration-500"
-                style={{ opacity: hasMoved ? 1 : 0 }}
-            />
-
-            {/* Cursor Node */}
-            <div
-                ref={nodeRef}
-                className="fixed pointer-events-none transition-opacity duration-500 top-0 left-0 z-50 flex items-center justify-center"
-                style={{
-                    width: '20px',
-                    height: '20px',
-                    opacity: hasMoved ? 1 : 0,
-                }}
-            >
-                <div className={`w-2.5 h-2.5 rounded-full ${isPencil ? 'bg-black' : ((isComic || isCrayon) ? 'bg-black' : 'bg-[#0969da] shadow-[0_0_15px_4px_rgba(9,105,218,0.4)]')}`} />
-                {(!isPencil && !isComic && !isCrayon) && <div className={`absolute inset-0 rounded-full opacity-50 blur-[2px] bg-[#8dd4fc]`} />}
-            </div>
 
             <div className="z-10 max-w-2xl w-full px-6">
 
                 {/* Header Section */}
                 <div className="mb-8 text-center">
-                    <p className={`text-sm text-black ${(isPencil || isComic || isCrayon) ? 'text-lg font-bold tracking-wider' : ''}`}>
+                    <p className={`text-sm text-black ${(isPencil || isComic) ? 'text-lg font-bold tracking-wider' : ''}`}>
                         Visualize your local codebase or GitHub repository.
                     </p>
                 </div>
@@ -383,8 +158,8 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, th
                         }}
                         style={sketchyBorder}
                         className={`flex-1 border py-2 px-3 text-sm focus:outline-none transition-all 
-                        ${(isPencil || isComic || isCrayon)
-                                ? ((isComic || isCrayon) ? 'bg-white border-black text-black placeholder-black/50 focus:border-black focus:ring-1 focus:ring-black' : 'bg-white border-black text-black placeholder-gray-500 focus:border-black focus:ring-1 focus:ring-black')
+                        ${(isPencil || isComic)
+                                ? ((isComic) ? 'bg-white border-black text-black placeholder-black/50 focus:border-black focus:ring-1 focus:ring-black' : 'bg-white border-black text-black placeholder-gray-500 focus:border-black focus:ring-1 focus:ring-black')
                                 : 'bg-white border-[#d0d7de] text-black placeholder-gray-500 focus:border-[#0969da] rounded-md'
                             }`}
                     />
@@ -393,8 +168,8 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, th
                         disabled={loading || !repoUrl.trim()}
                         style={sketchyBorder}
                         className={`px-4 py-2 text-white disabled:opacity-50 text-sm transition-all transform active:scale-95
-                        ${(isPencil || isComic || isCrayon)
-                                ? ((isComic || isCrayon) ? 'bg-[#ffcc00] text-black border-2 border-black hover:bg-[#ffdb4d] font-bold' : 'bg-black text-white border-2 border-transparent hover:border-black hover:bg-white hover:text-black font-bold')
+                        ${(isPencil || isComic)
+                                ? ((isComic) ? 'bg-[#ffcc00] text-black border-2 border-black hover:bg-[#ffdb4d] font-bold disabled:text-black/50' : 'bg-black text-white border-2 border-transparent hover:border-black hover:bg-white hover:text-black font-bold')
                                 : 'bg-[#0969da] hover:bg-[#0860ca] rounded-md'
                             }`}
                     >
@@ -405,10 +180,10 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, th
                 {/* Separator */}
                 <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
-                        <div className={`w-full border-t ${(isPencil || isComic || isCrayon) ? 'border-black/30' : 'border-[#d0d7de]'}`}></div>
+                        <div className={`w-full border-t ${(isPencil || isComic) ? 'border-black/30' : 'border-[#d0d7de]'}`}></div>
                     </div>
                     <div className="relative flex justify-center text-sm">
-                        <span className={`px-2 ${(isPencil || isComic || isCrayon) ? 'font-bold' : ''} bg-[#ffffff] text-[#656d76]`}>
+                        <span className={`px-2 ${(isPencil || isComic) ? 'font-bold' : ''} bg-[#ffffff] text-[#656d76]`}>
                             OR
                         </span>
                     </div>
@@ -419,14 +194,14 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, th
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleDrop}
-                    style={(isPencil || isComic || isCrayon) ? {
+                    style={(isPencil || isComic) ? {
                         borderRadius: '255px 15px 225px 15px / 15px 225px 15px 255px',
                         borderWidth: '2px'
                     } : {}}
                     className={`
                 relative group cursor-pointer border-dashed transition-all duration-200
                 flex flex-col items-center justify-center py-8 md:py-12 px-4 md:px-8
-                ${(isPencil || isComic || isCrayon)
+                ${(isPencil || isComic)
                             ? (isDragging
                                 ? 'bg-gray-50 border-black text-black scale-[1.02]'
                                 : 'bg-transparent border-black/50 hover:border-black hover:bg-gray-50')
@@ -445,21 +220,21 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ onUploadComplete, th
                         <>
                             <div className={`mb-2 transition-colors text-[#656d76] group-hover:text-[#1f2328]`}>
                                 <svg className="w-8 h-8 mx-auto mb-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={(isPencil || isComic || isCrayon) ? 2.5 : 1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={(isPencil || isComic) ? 2.5 : 1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                                 </svg>
-                                <span className={`text-sm block text-center ${(isPencil || isComic || isCrayon) ? 'font-bold text-lg' : 'font-semibold'}`}>
+                                <span className={`text-sm block text-center ${(isPencil || isComic) ? 'font-bold text-lg' : 'font-semibold'}`}>
                                     Upload a directory
                                 </span>
                             </div>
                             <span className={`text-xs text-[#656d76]`}>
-                                Drag & drop or <span className={`${(isPencil || isComic || isCrayon) ? 'text-black underline' : 'text-[#0969da]'} hover:underline`}>browse</span>
+                                Drag & drop or <span className={`${(isPencil || isComic) ? 'text-black underline' : 'text-[#0969da]'} hover:underline`}>browse</span>
                             </span>
                         </>
                     )}
                 </div>
 
                 <div className={`mt-6 flex items-center justify-center gap-2 text-xs border p-3 shadow-sm 
-                    ${(isPencil || isComic || isCrayon)
+                    ${(isPencil || isComic)
                         ? 'bg-white border-black text-black'
                         : 'bg-white border-[#d0d7de] text-[#656d76] rounded-md'
                     }`}
