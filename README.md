@@ -58,6 +58,9 @@
   </a>
 </div>
 
+[![Live Map Preview](https://mapmyrepo.vasudev.live/preview.svg)](https://mapmyrepo.vasudev.live/?user=vasu-devs&repo=MapMyRepo)
+
+
 Try visualizing any public repository:
 ```
 https://github.com/facebook/react
