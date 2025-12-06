@@ -338,22 +338,24 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
         // Create a copy of links to avoid mutation issues with React strict mode / re-renders
         const simulationLinks = links.map(d => ({ ...d }));
 
+        const isMobile = width < 768;
+
         // Simulation
         const simulation = d3.forceSimulation<UniverseNode>(nodes)
             .force("link", d3.forceLink<UniverseNode, UniverseLink>(simulationLinks)
                 .id(d => d.id)
                 .distance(d => {
-                    if (d.source.type === 'USER' || d.target.type === 'USER') return 250;
-                    return 100;
+                    if (d.source.type === 'USER' || d.target.type === 'USER') return isMobile ? 150 : 250;
+                    return isMobile ? 60 : 100;
                 })
                 .strength(0.4)
             )
             .force("charge", d3.forceManyBody().strength(d => {
-                if (d.type === 'USER') return -2000;
-                if (d.type === 'LANGUAGE') return -800;
-                return -300;
+                if (d.type === 'USER') return isMobile ? -1000 : -2000;
+                if (d.type === 'LANGUAGE') return isMobile ? -400 : -800;
+                return isMobile ? -150 : -300;
             }))
-            .force("collide", d3.forceCollide().radius(d => (d.r || 5) + 30).iterations(4))
+            .force("collide", d3.forceCollide().radius(d => (d.r || 5) + (isMobile ? 15 : 30)).iterations(4))
             .force("center", d3.forceCenter(0, 0).strength(0.05));
 
         // Links
@@ -625,10 +627,10 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
             {/* Legend */}
             {
                 (theme === 'pencil' || theme === 'comic') ? (
-                    <div className={`absolute bottom-4 left-4 z-20 p-4 rounded-lg border-2 
+                    <div className={`absolute bottom-20 left-4 md:bottom-4 md:left-4 z-20 p-2 md:p-4 rounded-lg border-2 
                         ${theme === 'pencil' ? 'border-black bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' :
                             ((theme === 'comic') ? 'border-black bg-[#f0e6d2] text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'border-[#2c3e50] bg-[#fdfdf6] text-[#2c3e50] shadow-lg')} 
-                        font-['Patrick_Hand'] transform rotate-1`}>
+                        font-['Patrick_Hand'] transform rotate-1 scale-75 md:scale-100 origin-bottom-left`}>
                         <h3 className={`text-lg font-bold mb-2 border-b ${theme === 'pencil' ? 'border-black' : ((theme === 'comic') ? 'border-black' : 'border-[#2c3e50]')} pb-1`}>LEGEND</h3>
                         <div className="flex items-center gap-2 mb-1">
                             <div className={`w-4 h-4 rounded-full border-2 
@@ -642,7 +644,7 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
                                 ${theme === 'pencil' ? 'border-black bg-white' :
                                     ((theme === 'comic') ? 'border-black bg-[#89CFF0]' : 'border-[#2c3e50] bg-[#3178c6]')}`}
                                 style={{ backgroundImage: theme === 'pencil' ? 'url(#pattern-lines)' : 'none' }}></div>
-                            <span>Language (Click to Expand)</span>
+                            <span>Language</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className={`w-3 h-3 rounded-full border 
@@ -653,7 +655,7 @@ export const UserUniverse: React.FC<UserUniverseProps> = ({ repos, onRepoSelect,
                         </div>
                     </div>
                 ) : (
-                    <div className="absolute bottom-4 right-4 z-20 text-xs text-gray-500 pointer-events-none">
+                    <div className="absolute bottom-20 right-4 md:bottom-4 md:right-4 z-20 text-xs text-gray-500 pointer-events-none text-center w-full md:w-auto md:text-right px-4 md:px-0">
                         Click a Language to expand. Click a Repo to visualize.
                     </div>
                 )

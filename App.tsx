@@ -421,10 +421,10 @@ const App: React.FC = () => {
       {/* Navbar */}
       {/* Navbar */}
       {!isEmbed && (
-        <nav className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 md:px-8 py-4 md:py-6 z-50 pointer-events-none">
+        <nav className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 md:px-8 py-3 md:py-6 z-50 pointer-events-none">
 
           {/* Left Side: Title (Home) or Upload New (Map) */}
-          <div className="pointer-events-auto flex items-center gap-3">
+          <div className="pointer-events-auto flex items-center gap-2 md:gap-3">
             {(viewMode !== 'home') && (
               <button
                 onClick={() => {
@@ -450,13 +450,13 @@ const App: React.FC = () => {
                 }}
                 className={`flex items-center gap-2 transition-all 
                 ${viewMode === 'universe' && (theme === 'pencil' || theme === 'comic')
-                    ? `px-4 py-2 rounded-md shadow-md transform -rotate-1 hover:rotate-0 hover:scale-105 border-2 ${theme === 'pencil' ? 'bg-white text-black border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : (theme === 'comic' ? 'bg-[#ffcc00] text-black border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-[#4a90e2] text-white border-[#2c3e50]')}`
+                    ? `px-3 py-1.5 md:px-4 md:py-2 rounded-md shadow-md transform -rotate-1 hover:rotate-0 hover:scale-105 border-2 ${theme === 'pencil' ? 'bg-white text-black border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : (theme === 'comic' ? 'bg-[#ffcc00] text-black border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-[#4a90e2] text-white border-[#2c3e50]')}`
                     : 'text-gray-600 hover:text-black'
                   }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                <span className={viewMode === 'universe' && (theme === 'pencil' || theme === 'comic') ? "text-lg font-bold" : "font-semibold"}>
-                  {viewMode === 'repo' && universeData.length > 0 ? "Back to Universe" : "Back to Home"}
+                <span className={`${viewMode === 'universe' && (theme === 'pencil' || theme === 'comic') ? "text-sm md:text-lg font-bold" : "font-semibold hidden md:inline"}`}>
+                  {viewMode === 'repo' && universeData.length > 0 ? "Back to Universe" : "Home"}
                 </span>
               </button>
             )}
@@ -500,12 +500,12 @@ const App: React.FC = () => {
 
           {/* Center: Profile Link (Universe View Only) */}
           {viewMode === 'universe' && universeData.length > 0 && (
-            <div className="pointer-events-auto absolute left-1/2 transform -translate-x-1/2 top-6">
+            <div className="pointer-events-auto absolute left-1/2 transform -translate-x-1/2 top-4 md:top-6 w-full text-center pointer-events-none">
               <a
                 href={`https://github.com/${universeData[0].owner.login}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`text-xl hover:underline 
+                className={`text-lg md:text-xl hover:underline px-2 py-1 bg-white/80 backdrop-blur-sm rounded-md pointer-events-auto
                 ${(theme === 'pencil' || theme === 'comic') ? 'font-bold' : ''} 
                 ${theme === 'pencil' ? 'text-black' : 'text-black'}`}
               >
@@ -515,15 +515,15 @@ const App: React.FC = () => {
           )}
 
           {/* Right Side: Appearance, GitHub & Theme Toggle */}
-          <div className="flex items-center gap-4 pointer-events-auto px-6 py-2">
+          <div className="flex items-center gap-2 md:gap-4 pointer-events-auto px-2 md:px-6 py-2">
 
             {/* Appearance Dropdown */}
             <div className="relative group">
-              <button className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all border 
+              <button className={`flex items-center gap-2 px-2 py-1.5 md:px-3 rounded-md text-sm font-medium transition-all border 
               ${theme === 'pencil' ? 'bg-white border-black text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' :
                   (theme === 'comic' ? 'bg-[#ffcc00] border-black text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' :
                     'bg-white border-[#d0d7de] text-gray-700 hover:text-black')}`}>
-                <span className={(theme === 'pencil' || theme === 'comic') ? "font-['Patrick_Hand'] font-bold" : ""}>Appearance</span>
+                <span className={`hidden md:inline ${(theme === 'pencil' || theme === 'comic') ? "font-['Patrick_Hand'] font-bold" : ""}`}>Appearance</span>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </button>
 
