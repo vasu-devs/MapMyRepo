@@ -58,8 +58,7 @@
   </a>
 </div>
 
-[![Live Map Preview](https://mapmyrepo.vasudev.live/preview.svg)](https://mapmyrepo.vasudev.live/?user=vasu-devs&repo=MapMyRepo)
-
+[![Visualize in MapMyRepo](https://mapmyrepo.vasudev.live/badge.svg)](https://mapmyrepo.vasudev.live/?user=vasu-devs&repo=MapMyRepo)
 
 Try visualizing any public repository:
 ```
